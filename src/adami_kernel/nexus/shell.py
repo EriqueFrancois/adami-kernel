@@ -192,7 +192,7 @@ class InteractiveShell:
             ans = (await _read_line()).strip().lower()
         except EOFError:
             return False
-        return ans in {"y", "yes", "确认", "是"}
+        return ans in {"y", "yes", "确认", "是"}  # adami:allow-cjk - accept CN confirmations
 
     async def _immediate_report_menu(self) -> None:
         """CLI: pick daily / weekly / monthly → publish ``/report run`` (same as ports)."""
@@ -277,7 +277,7 @@ class InteractiveShell:
             ans = (await _read_line()).strip().lower()
         except EOFError:
             return
-        if ans in {"d", "discard", "drop", "丢弃", "n", "no"}:
+        if ans in {"d", "discard", "drop", "丢弃", "n", "no"}:  # adami:allow-cjk - accept CN discard
             try:
                 tq.discard_all(cid)
             except Exception:

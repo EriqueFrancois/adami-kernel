@@ -45,29 +45,29 @@ _TRUST_CITY_MISMATCH_DOMAINS = ("weather.com.cn", "nmc.cn", "cma.gov.cn")
 def _normalize_city_token(t: str) -> str:
     s = str(t or "").strip()
     # Strip common prefixes that appear in natural queries.
-    for p in ("今天", "现在", "明天", "后天"):
+    for p in ("今天", "现在", "明天", "后天"):  # adami:allow-cjk - Chinese query prefixes
         if s.startswith(p) and len(s) > len(p):
             s = s[len(p) :]
             break
     # Normalize suffixes.
     s = re.sub(r"(市|县|区|省)$", "", s)
     # Special-case Beijing/Shanghai-style forms.
-    if s == "北京市":
-        s = "北京"
+    if s == "北京市":  # adami:allow-cjk - normalize common CN city form
+        s = "北京"  # adami:allow-cjk - normalize to short city token
     return s.strip()
 
 
 _STOP_TOKENS = {
-    "查询",
-    "今天",
-    "现在",
-    "明天",
-    "后天",
-    "北京市",
-    "天气",
-    "气温",
-    "温度",
-    "预报",
+    "查询",  # adami:allow-cjk - CN stopword for city extraction
+    "今天",  # adami:allow-cjk - CN stopword for city extraction
+    "现在",  # adami:allow-cjk - CN stopword for city extraction
+    "明天",  # adami:allow-cjk - CN stopword for city extraction
+    "后天",  # adami:allow-cjk - CN stopword for city extraction
+    "北京市",  # adami:allow-cjk - CN stopword for city extraction
+    "天气",  # adami:allow-cjk - CN stopword for city extraction
+    "气温",  # adami:allow-cjk - CN stopword for city extraction
+    "温度",  # adami:allow-cjk - CN stopword for city extraction
+    "预报",  # adami:allow-cjk - CN stopword for city extraction
 }
 
 _OPEN_METEO_GEOCODE = "https://geocoding-api.open-meteo.com/v1/search"
@@ -119,7 +119,7 @@ async def _try_weather_from_public_api(context: TemplateExecutionContext) -> str
     raw = _excerpt(context)
     loc = _locale()
     resolved = resolve_city_from_text(raw, locale=loc)
-    city = resolved.api_name if resolved is not None else (_extract_city_cn(raw) or "北京")
+    city = resolved.api_name if resolved is not None else (_extract_city_cn(raw) or "北京")  # adami:allow-cjk - CN default city fallback
     geo = await _fetch_open_meteo_city_latlon(city)
     if not geo:
         return ""
@@ -132,11 +132,13 @@ async def _try_weather_from_public_api(context: TemplateExecutionContext) -> str
     wd = cur.get("wind_direction_10m")
     if t is None and ws is None:
         return ""
-    parts = [f"- **{disp} 实况**: {t}℃" if t is not None else f"- **{disp} 实况**"]
+    parts = [  # adami:allow-cjk - zh locale output label
+        f"- **{disp} 实况**: {t}℃" if t is not None else f"- **{disp} 实况**"  # adami:allow-cjk - zh locale output label
+    ]
     if ws is not None:
-        parts[0] += f" · 风速 {ws} km/h"
+        parts[0] += f" · 风速 {ws} km/h"  # adami:allow-cjk - zh locale output label
     if wd is not None:
-        parts[0] += f" · 风向 {wd}°"
+        parts[0] += f" · 风向 {wd}°"  # adami:allow-cjk - zh locale output label
     parts.append("- **Source**: Open-Meteo (public API)")
     return "\n".join(parts).strip()
 
@@ -190,7 +192,7 @@ def _weather_query(context: TemplateExecutionContext) -> str:
     city = resolved.display_name if resolved is not None else _extract_city_cn(raw)
     if city:
         # Prefer "实况/气温/风" over national news pages.
-        q = f"{city} 天气 实况 气温 风"
+        q = f"{city} 天气 实况 气温 风"  # adami:allow-cjk - CN query bias for search relevance
     else:
         q = raw
     return q.strip()[:200]
@@ -276,7 +278,7 @@ class RetrievalWeatherTemplateHandler:
                         low = blob.lower()
                         if href and _RE_BAD_WEATHER_HREF.search(href):
                             continue
-                        if "qcc.com" in low or "企查查" in blob:
+                        if "qcc.com" in low or "企查查" in blob:  # adami:allow-cjk - company registry keyword filter
                             continue
                         # Known noisy sources for city forecasts (long prose, often mismatched).
                         if "windy.app" in low or "ventusky" in low:
@@ -294,14 +296,14 @@ class RetrievalWeatherTemplateHandler:
                                 d in low for d in ("weather.com.cn", "nmc.cn", "cma.gov.cn")
                             ):
                                 continue
-                        if ("weather" not in low) and ("天气" not in blob) and ("预报" not in blob):
+                        if ("weather" not in low) and ("天气" not in blob) and ("预报" not in blob):  # adami:allow-cjk - CN keyword filter
                             continue
                         filtered.append(row)
                     hits = filtered
                 # Prefer a compact observation line when present (reduces "news soup").
                 obs = _try_extract_cn_observation(hits, city=city)
                 if obs:
-                    body = f"{city or '天气实况'}: {obs}"
+                    body = f"{city or '天气实况'}: {obs}"  # adami:allow-cjk - zh locale fallback label
                 else:
                     body = plain_lines_from_search_hits(hits, max_items=2, body_max=160)
             except Exception:

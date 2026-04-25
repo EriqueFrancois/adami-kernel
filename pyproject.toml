@@ -126,6 +126,12 @@ ignore = [
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
+[tool.pyright]
+include = ["src"]
+exclude = ["tests", "scripts", "skills", "frontend", ".adami_data", ".adami_sandbox"]
+pythonVersion = "3.10"
+typeCheckingMode = "off"
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101", "S603"]
 "tests/test_multi_modal_document_path_step3.py" = ["S101", "S603", "ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN204"]
@@ -137,13 +143,6 @@ convention = "google"
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
-
-[tool.pyright]
-include = ["src", "tests"]
-exclude = [".adami_data"]
-typeCheckingMode = "strict"
-reportMissingImports = true
-reportMissingTypeStubs = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

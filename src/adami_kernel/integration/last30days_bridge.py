@@ -195,8 +195,10 @@ async def _rate_limit_check(
     min_interval_sec: float,
 ) -> Optional[BridgeErrorInfo]:
     """
-    scheduled 触发限流：同一个 (sources, emit) 在 min_interval_sec 内只允许执行一次。
-    返回 error info（被限流）或 None（允许执行）。
+    Scheduled trigger rate limit.
+
+    For a given pair of (sources, emit), allow at most one execution within
+    `min_interval_sec`. Returns error info when rate-limited, otherwise None.
     """
     key = (str(sources), str(emit))
     now = _now()

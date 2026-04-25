@@ -200,10 +200,10 @@ def _coerce_value(name: str, annotation: Any, raw: str) -> Any:
             return False
         raise ValueError(_wizard_t("settings.coerce.bool_hint"))
 
-    if ann is int or (origin is None and ann == int):
+    if ann is int:
         return int(raw_stripped)
 
-    if ann is float or (origin is None and ann == float):
+    if ann is float:
         return float(raw_stripped)
 
     if ann is Path or (origin is None and ann == Path):

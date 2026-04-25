@@ -1,7 +1,6 @@
-# --- START OF FILE skill_metadata.py ---
-"""
-技能元数据模型，用于管理技能的版本、评分、调用统计等信息。
-存储在 LayeredMemory 的 skill_metadata 域中。
+"""Skill metadata models for versioning, scoring, and usage metrics.
+
+Stored under the `skill_metadata` domain in LayeredMemory.
 """
 
 from datetime import datetime
@@ -30,10 +29,7 @@ class SkillVersion(BaseModel):
 
 
 class SkillMetadata(BaseModel):
-    """
-    技能的完整元数据，支持版本管理、动态评分和状态机。
-    每个技能对应一条记录，存储在 LayeredMemory 中。
-    """
+    """Full skill metadata with versioning, dynamic scoring, and a small state machine."""
 
     skill_name: str = Field(..., description=_smeta_d("smeta.field.skill_name"))
     status: str = Field(default="active", description=_smeta_d("smeta.field.status"))
@@ -60,16 +56,18 @@ class SkillMetadata(BaseModel):
         default_factory=datetime.now, description=_smeta_d("smeta.field.updated_meta")
     )
     # Anthropic / SkillRouter 轻量字段（可选；LayeredMemory 中的记录通常不含这些）
-    description: Optional[str] = Field(default=None, description="技能简述，用于路由与向量检索")
+    description: Optional[str] = Field(default=None, description=_smeta_d("smeta.field.description"))
     prompt_template: Optional[str] = Field(
-        default=None, description="Anthropic SKILL.md 正文或注入提示模板"
+        default=None, description=_smeta_d("smeta.field.prompt_template")
     )
-    required_params: List[str] = Field(default_factory=list, description="模板中的占位参数名")
-    category: Optional[str] = Field(default=None, description="分类标签")
-    tags: List[str] = Field(default_factory=list, description="检索用标签")
-    source: Optional[str] = Field(default=None, description="来源，如 anthropic-official")
+    required_params: List[str] = Field(
+        default_factory=list, description=_smeta_d("smeta.field.required_params")
+    )
+    category: Optional[str] = Field(default=None, description=_smeta_d("smeta.field.category"))
+    tags: List[str] = Field(default_factory=list, description=_smeta_d("smeta.field.tags"))
+    source: Optional[str] = Field(default=None, description=_smeta_d("smeta.field.source"))
     extra_metadata: Dict[str, Any] = Field(
-        default_factory=dict, description="SKILL.md frontmatter 原始扩展字段"
+        default_factory=dict, description=_smeta_d("smeta.field.extra_metadata")
     )
 
     class Config:
