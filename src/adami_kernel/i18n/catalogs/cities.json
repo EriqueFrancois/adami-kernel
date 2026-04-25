@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "cities": [
+    {
+      "id": "cn_beijing",
+      "country": "CN",
+      "names": { "en": "Beijing", "zh-Hans": "北京" },
+      "aliases": {
+        "en": ["beijing", "bj"],
+        "zh-Hans": ["北京", "北京市", "帝都"]
+      },
+      "api": { "open_meteo": { "name": { "en": "Beijing", "zh-Hans": "北京" } } }
+    },
+    {
+      "id": "cn_shanghai",
+      "country": "CN",
+      "names": { "en": "Shanghai", "zh-Hans": "上海" },
+      "aliases": {
+        "en": ["shanghai", "sh"],
+        "zh-Hans": ["上海", "上海市", "魔都"]
+      },
+      "api": { "open_meteo": { "name": { "en": "Shanghai", "zh-Hans": "上海" } } }
+    },
+    {
+      "id": "cn_guangzhou",
+      "country": "CN",
+      "names": { "en": "Guangzhou", "zh-Hans": "广州" },
+      "aliases": { "en": ["guangzhou", "gz"], "zh-Hans": ["广州", "广州市"] },
+      "api": { "open_meteo": { "name": { "en": "Guangzhou", "zh-Hans": "广州" } } }
+    },
+    {
+      "id": "cn_shenzhen",
+      "country": "CN",
+      "names": { "en": "Shenzhen", "zh-Hans": "深圳" },
+      "aliases": { "en": ["shenzhen", "sz"], "zh-Hans": ["深圳", "深圳市"] },
+      "api": { "open_meteo": { "name": { "en": "Shenzhen", "zh-Hans": "深圳" } } }
+    },
+    {
+      "id": "cn_chengdu",
+      "country": "CN",
+      "names": { "en": "Chengdu", "zh-Hans": "成都" },
+      "aliases": { "en": ["chengdu", "cd"], "zh-Hans": ["成都", "成都市", "蓉城"] },
+      "api": { "open_meteo": { "name": { "en": "Chengdu", "zh-Hans": "成都" } } }
+    },
+    {
+      "id": "cn_hangzhou",
+      "country": "CN",
+      "names": { "en": "Hangzhou", "zh-Hans": "杭州" },
+      "aliases": { "en": ["hangzhou", "hz"], "zh-Hans": ["杭州", "杭州市"] },
+      "api": { "open_meteo": { "name": { "en": "Hangzhou", "zh-Hans": "杭州" } } }
+    },
+    {
+      "id": "cn_nanjing",
+      "country": "CN",
+      "names": { "en": "Nanjing", "zh-Hans": "南京" },
+      "aliases": { "en": ["nanjing", "nj"], "zh-Hans": ["南京", "南京市"] },
+      "api": { "open_meteo": { "name": { "en": "Nanjing", "zh-Hans": "南京" } } }
+    },
+    {
+      "id": "cn_wuhan",
+      "country": "CN",
+      "names": { "en": "Wuhan", "zh-Hans": "武汉" },
+      "aliases": { "en": ["wuhan", "wh"], "zh-Hans": ["武汉", "武汉市"] },
+      "api": { "open_meteo": { "name": { "en": "Wuhan", "zh-Hans": "武汉" } } }
+    },
+    {
+      "id": "cn_xian",
+      "country": "CN",
+      "names": { "en": "Xi'an", "zh-Hans": "西安" },
+      "aliases": { "en": ["xian", "xi'an"], "zh-Hans": ["西安", "西安市"] },
+      "api": { "open_meteo": { "name": { "en": "Xi'an", "zh-Hans": "西安" } } }
+    },
+    {
+      "id": "us_new_york",
+      "country": "US",
+      "names": { "en": "New York", "zh-Hans": "纽约" },
+      "aliases": { "en": ["new york", "nyc"], "zh-Hans": ["纽约", "纽约市", "NYC"] },
+      "api": { "open_meteo": { "name": { "en": "New York", "zh-Hans": "New York" } } }
+    },
+    {
+      "id": "us_san_francisco",
+      "country": "US",
+      "names": { "en": "San Francisco", "zh-Hans": "旧金山" },
+      "aliases": { "en": ["san francisco", "sf"], "zh-Hans": ["旧金山", "三藩市", "SF"] },
+      "api": { "open_meteo": { "name": { "en": "San Francisco", "zh-Hans": "San Francisco" } } }
+    },
+    {
+      "id": "uk_london",
+      "country": "GB",
+      "names": { "en": "London", "zh-Hans": "伦敦" },
+      "aliases": { "en": ["london"], "zh-Hans": ["伦敦"] },
+      "api": { "open_meteo": { "name": { "en": "London", "zh-Hans": "London" } } }
+    },
+    {
+      "id": "jp_tokyo",
+      "country": "JP",
+      "names": { "en": "Tokyo", "zh-Hans": "东京" },
+      "aliases": { "en": ["tokyo"], "zh-Hans": ["东京"] },
+      "api": { "open_meteo": { "name": { "en": "Tokyo", "zh-Hans": "Tokyo" } } }
+    },
+    {
+      "id": "sg_singapore",
+      "country": "SG",
+      "names": { "en": "Singapore", "zh-Hans": "新加坡" },
+      "aliases": { "en": ["singapore"], "zh-Hans": ["新加坡", "狮城"] },
+      "api": { "open_meteo": { "name": { "en": "Singapore", "zh-Hans": "Singapore" } } }
+    },
+
+    { "id": "cn_tianjin", "country": "CN", "names": { "en": "Tianjin", "zh-Hans": "天津" }, "aliases": { "en": ["tianjin", "tj"], "zh-Hans": ["天津", "天津市"] }, "api": { "open_meteo": { "name": { "en": "Tianjin", "zh-Hans": "天津" } } } },
+    { "id": "cn_chongqing", "country": "CN", "names": { "en": "Chongqing", "zh-Hans": "重庆" }, "aliases": { "en": ["chongqing", "cq"], "zh-Hans": ["重庆", "重庆市", "山城"] }, "api": { "open_meteo": { "name": { "en": "Chongqing", "zh-Hans": "重庆" } } } },
+
+    { "id": "cn_shijiazhuang", "country": "CN", "names": { "en": "Shijiazhuang", "zh-Hans": "石家庄" }, "aliases": { "en": ["shijiazhuang"], "zh-Hans": ["石家庄", "石家庄市"] }, "api": { "open_meteo": { "name": { "en": "Shijiazhuang", "zh-Hans": "石家庄" } } } },
+    { "id": "cn_taiyuan", "country": "CN", "names": { "en": "Taiyuan", "zh-Hans": "太原" }, "aliases": { "en": ["taiyuan"], "zh-Hans": ["太原", "太原市"] }, "api": { "open_meteo": { "name": { "en": "Taiyuan", "zh-Hans": "太原" } } } },
+    { "id": "cn_hohhot", "country": "CN", "names": { "en": "Hohhot", "zh-Hans": "呼和浩特" }, "aliases": { "en": ["hohhot", "huhehaote"], "zh-Hans": ["呼和浩特", "呼市"] }, "api": { "open_meteo": { "name": { "en": "Hohhot", "zh-Hans": "呼和浩特" } } } },
+
+    { "id": "cn_shenyang", "country": "CN", "names": { "en": "Shenyang", "zh-Hans": "沈阳" }, "aliases": { "en": ["shenyang"], "zh-Hans": ["沈阳", "沈阳市"] }, "api": { "open_meteo": { "name": { "en": "Shenyang", "zh-Hans": "沈阳" } } } },
+    { "id": "cn_changchun", "country": "CN", "names": { "en": "Changchun", "zh-Hans": "长春" }, "aliases": { "en": ["changchun"], "zh-Hans": ["长春", "长春市"] }, "api": { "open_meteo": { "name": { "en": "Changchun", "zh-Hans": "长春" } } } },
+    { "id": "cn_harbin", "country": "CN", "names": { "en": "Harbin", "zh-Hans": "哈尔滨" }, "aliases": { "en": ["harbin"], "zh-Hans": ["哈尔滨", "哈尔滨市"] }, "api": { "open_meteo": { "name": { "en": "Harbin", "zh-Hans": "哈尔滨" } } } },
+
+    { "id": "cn_jinan", "country": "CN", "names": { "en": "Jinan", "zh-Hans": "济南" }, "aliases": { "en": ["jinan"], "zh-Hans": ["济南", "济南市"] }, "api": { "open_meteo": { "name": { "en": "Jinan", "zh-Hans": "济南" } } } },
+    { "id": "cn_zhengzhou", "country": "CN", "names": { "en": "Zhengzhou", "zh-Hans": "郑州" }, "aliases": { "en": ["zhengzhou"], "zh-Hans": ["郑州", "郑州市"] }, "api": { "open_meteo": { "name": { "en": "Zhengzhou", "zh-Hans": "郑州" } } } },
+    { "id": "cn_changsha", "country": "CN", "names": { "en": "Changsha", "zh-Hans": "长沙" }, "aliases": { "en": ["changsha"], "zh-Hans": ["长沙", "长沙市"] }, "api": { "open_meteo": { "name": { "en": "Changsha", "zh-Hans": "长沙" } } } },
+    { "id": "cn_nanchang", "country": "CN", "names": { "en": "Nanchang", "zh-Hans": "南昌" }, "aliases": { "en": ["nanchang"], "zh-Hans": ["南昌", "南昌市"] }, "api": { "open_meteo": { "name": { "en": "Nanchang", "zh-Hans": "南昌" } } } },
+    { "id": "cn_fuzhou", "country": "CN", "names": { "en": "Fuzhou", "zh-Hans": "福州" }, "aliases": { "en": ["fuzhou"], "zh-Hans": ["福州", "福州市"] }, "api": { "open_meteo": { "name": { "en": "Fuzhou", "zh-Hans": "福州" } } } },
+    { "id": "cn_hefei", "country": "CN", "names": { "en": "Hefei", "zh-Hans": "合肥" }, "aliases": { "en": ["hefei"], "zh-Hans": ["合肥", "合肥市"] }, "api": { "open_meteo": { "name": { "en": "Hefei", "zh-Hans": "合肥" } } } },
+
+    { "id": "cn_kunming", "country": "CN", "names": { "en": "Kunming", "zh-Hans": "昆明" }, "aliases": { "en": ["kunming"], "zh-Hans": ["昆明", "昆明市"] }, "api": { "open_meteo": { "name": { "en": "Kunming", "zh-Hans": "昆明" } } } },
+    { "id": "cn_guiyang", "country": "CN", "names": { "en": "Guiyang", "zh-Hans": "贵阳" }, "aliases": { "en": ["guiyang"], "zh-Hans": ["贵阳", "贵阳市"] }, "api": { "open_meteo": { "name": { "en": "Guiyang", "zh-Hans": "贵阳" } } } },
+    { "id": "cn_nanning", "country": "CN", "names": { "en": "Nanning", "zh-Hans": "南宁" }, "aliases": { "en": ["nanning"], "zh-Hans": ["南宁", "南宁市"] }, "api": { "open_meteo": { "name": { "en": "Nanning", "zh-Hans": "南宁" } } } },
+    { "id": "cn_haikou", "country": "CN", "names": { "en": "Haikou", "zh-Hans": "海口" }, "aliases": { "en": ["haikou"], "zh-Hans": ["海口", "海口市"] }, "api": { "open_meteo": { "name": { "en": "Haikou", "zh-Hans": "海口" } } } },
+
+    { "id": "cn_lanzhou", "country": "CN", "names": { "en": "Lanzhou", "zh-Hans": "兰州" }, "aliases": { "en": ["lanzhou"], "zh-Hans": ["兰州", "兰州市"] }, "api": { "open_meteo": { "name": { "en": "Lanzhou", "zh-Hans": "兰州" } } } },
+    { "id": "cn_xining", "country": "CN", "names": { "en": "Xining", "zh-Hans": "西宁" }, "aliases": { "en": ["xining"], "zh-Hans": ["西宁", "西宁市"] }, "api": { "open_meteo": { "name": { "en": "Xining", "zh-Hans": "西宁" } } } },
+    { "id": "cn_yinchuan", "country": "CN", "names": { "en": "Yinchuan", "zh-Hans": "银川" }, "aliases": { "en": ["yinchuan"], "zh-Hans": ["银川", "银川市"] }, "api": { "open_meteo": { "name": { "en": "Yinchuan", "zh-Hans": "银川" } } } },
+    { "id": "cn_urumqi", "country": "CN", "names": { "en": "Urumqi", "zh-Hans": "乌鲁木齐" }, "aliases": { "en": ["urumqi", "wulumuqi"], "zh-Hans": ["乌鲁木齐", "乌市"] }, "api": { "open_meteo": { "name": { "en": "Urumqi", "zh-Hans": "乌鲁木齐" } } } },
+    { "id": "cn_lhasa", "country": "CN", "names": { "en": "Lhasa", "zh-Hans": "拉萨" }, "aliases": { "en": ["lhasa"], "zh-Hans": ["拉萨", "拉萨市"] }, "api": { "open_meteo": { "name": { "en": "Lhasa", "zh-Hans": "拉萨" } } } },
+
+    { "id": "cn_taipei", "country": "TW", "names": { "en": "Taipei", "zh-Hans": "台北" }, "aliases": { "en": ["taipei"], "zh-Hans": ["台北", "台北市"] }, "api": { "open_meteo": { "name": { "en": "Taipei", "zh-Hans": "Taipei" } } } },
+
+    { "id": "us_washington_dc", "country": "US", "names": { "en": "Washington, DC", "zh-Hans": "华盛顿" }, "aliases": { "en": ["washington dc", "washington, dc", "dc"], "zh-Hans": ["华盛顿", "华盛顿特区", "DC"] }, "api": { "open_meteo": { "name": { "en": "Washington", "zh-Hans": "Washington" } } } },
+    { "id": "ca_ottawa", "country": "CA", "names": { "en": "Ottawa", "zh-Hans": "渥太华" }, "aliases": { "en": ["ottawa"], "zh-Hans": ["渥太华"] }, "api": { "open_meteo": { "name": { "en": "Ottawa", "zh-Hans": "Ottawa" } } } },
+    { "id": "mx_mexico_city", "country": "MX", "names": { "en": "Mexico City", "zh-Hans": "墨西哥城" }, "aliases": { "en": ["mexico city", "cdmx"], "zh-Hans": ["墨西哥城"] }, "api": { "open_meteo": { "name": { "en": "Mexico City", "zh-Hans": "Mexico City" } } } },
+    { "id": "br_brasilia", "country": "BR", "names": { "en": "Brasília", "zh-Hans": "巴西利亚" }, "aliases": { "en": ["brasilia", "brasília"], "zh-Hans": ["巴西利亚"] }, "api": { "open_meteo": { "name": { "en": "Brasilia", "zh-Hans": "Brasilia" } } } },
+    { "id": "ar_buenos_aires", "country": "AR", "names": { "en": "Buenos Aires", "zh-Hans": "布宜诺斯艾利斯" }, "aliases": { "en": ["buenos aires"], "zh-Hans": ["布宜诺斯艾利斯"] }, "api": { "open_meteo": { "name": { "en": "Buenos Aires", "zh-Hans": "Buenos Aires" } } } },
+
+    { "id": "fr_paris", "country": "FR", "names": { "en": "Paris", "zh-Hans": "巴黎" }, "aliases": { "en": ["paris"], "zh-Hans": ["巴黎"] }, "api": { "open_meteo": { "name": { "en": "Paris", "zh-Hans": "Paris" } } } },
+    { "id": "de_berlin", "country": "DE", "names": { "en": "Berlin", "zh-Hans": "柏林" }, "aliases": { "en": ["berlin"], "zh-Hans": ["柏林"] }, "api": { "open_meteo": { "name": { "en": "Berlin", "zh-Hans": "Berlin" } } } },
+    { "id": "it_rome", "country": "IT", "names": { "en": "Rome", "zh-Hans": "罗马" }, "aliases": { "en": ["rome", "roma"], "zh-Hans": ["罗马"] }, "api": { "open_meteo": { "name": { "en": "Rome", "zh-Hans": "Rome" } } } },
+    { "id": "es_madrid", "country": "ES", "names": { "en": "Madrid", "zh-Hans": "马德里" }, "aliases": { "en": ["madrid"], "zh-Hans": ["马德里"] }, "api": { "open_meteo": { "name": { "en": "Madrid", "zh-Hans": "Madrid" } } } },
+    { "id": "pt_lisbon", "country": "PT", "names": { "en": "Lisbon", "zh-Hans": "里斯本" }, "aliases": { "en": ["lisbon"], "zh-Hans": ["里斯本"] }, "api": { "open_meteo": { "name": { "en": "Lisbon", "zh-Hans": "Lisbon" } } } },
+    { "id": "nl_amsterdam", "country": "NL", "names": { "en": "Amsterdam", "zh-Hans": "阿姆斯特丹" }, "aliases": { "en": ["amsterdam"], "zh-Hans": ["阿姆斯特丹"] }, "api": { "open_meteo": { "name": { "en": "Amsterdam", "zh-Hans": "Amsterdam" } } } },
+    { "id": "be_brussels", "country": "BE", "names": { "en": "Brussels", "zh-Hans": "布鲁塞尔" }, "aliases": { "en": ["brussels"], "zh-Hans": ["布鲁塞尔"] }, "api": { "open_meteo": { "name": { "en": "Brussels", "zh-Hans": "Brussels" } } } },
+
+    { "id": "ru_moscow", "country": "RU", "names": { "en": "Moscow", "zh-Hans": "莫斯科" }, "aliases": { "en": ["moscow"], "zh-Hans": ["莫斯科"] }, "api": { "open_meteo": { "name": { "en": "Moscow", "zh-Hans": "Moscow" } } } },
+    { "id": "tr_ankara", "country": "TR", "names": { "en": "Ankara", "zh-Hans": "安卡拉" }, "aliases": { "en": ["ankara"], "zh-Hans": ["安卡拉"] }, "api": { "open_meteo": { "name": { "en": "Ankara", "zh-Hans": "Ankara" } } } },
+
+    { "id": "kr_seoul", "country": "KR", "names": { "en": "Seoul", "zh-Hans": "首尔" }, "aliases": { "en": ["seoul"], "zh-Hans": ["首尔", "漢城", "汉城"] }, "api": { "open_meteo": { "name": { "en": "Seoul", "zh-Hans": "Seoul" } } } },
+    { "id": "vn_hanoi", "country": "VN", "names": { "en": "Hanoi", "zh-Hans": "河内" }, "aliases": { "en": ["hanoi"], "zh-Hans": ["河内"] }, "api": { "open_meteo": { "name": { "en": "Hanoi", "zh-Hans": "Hanoi" } } } },
+    { "id": "th_bangkok", "country": "TH", "names": { "en": "Bangkok", "zh-Hans": "曼谷" }, "aliases": { "en": ["bangkok"], "zh-Hans": ["曼谷"] }, "api": { "open_meteo": { "name": { "en": "Bangkok", "zh-Hans": "Bangkok" } } } },
+    { "id": "my_kuala_lumpur", "country": "MY", "names": { "en": "Kuala Lumpur", "zh-Hans": "吉隆坡" }, "aliases": { "en": ["kuala lumpur", "kl"], "zh-Hans": ["吉隆坡", "KL"] }, "api": { "open_meteo": { "name": { "en": "Kuala Lumpur", "zh-Hans": "Kuala Lumpur" } } } },
+    { "id": "id_jakarta", "country": "ID", "names": { "en": "Jakarta", "zh-Hans": "雅加达" }, "aliases": { "en": ["jakarta"], "zh-Hans": ["雅加达"] }, "api": { "open_meteo": { "name": { "en": "Jakarta", "zh-Hans": "Jakarta" } } } },
+    { "id": "ph_manila", "country": "PH", "names": { "en": "Manila", "zh-Hans": "马尼拉" }, "aliases": { "en": ["manila"], "zh-Hans": ["马尼拉"] }, "api": { "open_meteo": { "name": { "en": "Manila", "zh-Hans": "Manila" } } } },
+    { "id": "in_new_delhi", "country": "IN", "names": { "en": "New Delhi", "zh-Hans": "新德里" }, "aliases": { "en": ["new delhi", "delhi"], "zh-Hans": ["新德里", "德里"] }, "api": { "open_meteo": { "name": { "en": "New Delhi", "zh-Hans": "New Delhi" } } } },
+
+    { "id": "au_canberra", "country": "AU", "names": { "en": "Canberra", "zh-Hans": "堪培拉" }, "aliases": { "en": ["canberra"], "zh-Hans": ["堪培拉"] }, "api": { "open_meteo": { "name": { "en": "Canberra", "zh-Hans": "Canberra" } } } },
+    { "id": "nz_wellington", "country": "NZ", "names": { "en": "Wellington", "zh-Hans": "惠灵顿" }, "aliases": { "en": ["wellington"], "zh-Hans": ["惠灵顿"] }, "api": { "open_meteo": { "name": { "en": "Wellington", "zh-Hans": "Wellington" } } } },
+
+    { "id": "eg_cairo", "country": "EG", "names": { "en": "Cairo", "zh-Hans": "开罗" }, "aliases": { "en": ["cairo"], "zh-Hans": ["开罗"] }, "api": { "open_meteo": { "name": { "en": "Cairo", "zh-Hans": "Cairo" } } } },
+    { "id": "ng_abuja", "country": "NG", "names": { "en": "Abuja", "zh-Hans": "阿布贾" }, "aliases": { "en": ["abuja"], "zh-Hans": ["阿布贾"] }, "api": { "open_meteo": { "name": { "en": "Abuja", "zh-Hans": "Abuja" } } } },
+    { "id": "ke_nairobi", "country": "KE", "names": { "en": "Nairobi", "zh-Hans": "内罗毕" }, "aliases": { "en": ["nairobi"], "zh-Hans": ["内罗毕"] }, "api": { "open_meteo": { "name": { "en": "Nairobi", "zh-Hans": "Nairobi" } } } },
+    { "id": "et_addis_ababa", "country": "ET", "names": { "en": "Addis Ababa", "zh-Hans": "亚的斯亚贝巴" }, "aliases": { "en": ["addis ababa"], "zh-Hans": ["亚的斯亚贝巴"] }, "api": { "open_meteo": { "name": { "en": "Addis Ababa", "zh-Hans": "Addis Ababa" } } } }
+  ]
+}
+

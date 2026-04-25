@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "assets": [
+    {
+      "symbol": "BTC",
+      "coingecko_id": "bitcoin",
+      "names": { "en": "Bitcoin", "zh-Hans": "比特币" },
+      "aliases": { "en": ["bitcoin", "btc"], "zh-Hans": ["比特币", "btc", "bitcoin"] }
+    },
+    {
+      "symbol": "ETH",
+      "coingecko_id": "ethereum",
+      "names": { "en": "Ethereum", "zh-Hans": "以太坊" },
+      "aliases": { "en": ["ethereum", "eth"], "zh-Hans": ["以太坊", "eth", "ethereum"] }
+    },
+    {
+      "symbol": "SOL",
+      "coingecko_id": "solana",
+      "names": { "en": "Solana", "zh-Hans": "索拉纳" },
+      "aliases": { "en": ["solana", "sol"], "zh-Hans": ["索拉纳", "索拉纳币", "solana", "sol"] }
+    },
+    {
+      "symbol": "BNB",
+      "coingecko_id": "binancecoin",
+      "names": { "en": "BNB", "zh-Hans": "币安币" },
+      "aliases": { "en": ["bnb", "binance coin"], "zh-Hans": ["bnb", "币安币", "币安"] }
+    },
+    {
+      "symbol": "XRP",
+      "coingecko_id": "ripple",
+      "names": { "en": "XRP", "zh-Hans": "瑞波币" },
+      "aliases": { "en": ["xrp", "ripple"], "zh-Hans": ["xrp", "瑞波", "瑞波币", "ripple"] }
+    },
+    {
+      "symbol": "USDT",
+      "coingecko_id": "tether",
+      "names": { "en": "Tether", "zh-Hans": "泰达币" },
+      "aliases": { "en": ["usdt", "tether"], "zh-Hans": ["usdt", "泰达", "泰达币", "tether"] }
+    },
+    {
+      "symbol": "USDC",
+      "coingecko_id": "usd-coin",
+      "names": { "en": "USD Coin", "zh-Hans": "美元币" },
+      "aliases": { "en": ["usdc", "usd coin"], "zh-Hans": ["usdc", "美元币", "usd coin"] }
+    },
+    {
+      "symbol": "DOGE",
+      "coingecko_id": "dogecoin",
+      "names": { "en": "Dogecoin", "zh-Hans": "狗狗币" },
+      "aliases": { "en": ["dogecoin", "doge"], "zh-Hans": ["狗狗币", "狗狗", "doge", "dogecoin"] }
+    },
+    {
+      "symbol": "ADA",
+      "coingecko_id": "cardano",
+      "names": { "en": "Cardano", "zh-Hans": "艾达币" },
+      "aliases": { "en": ["cardano", "ada"], "zh-Hans": ["艾达", "艾达币", "ada", "cardano"] }
+    },
+    {
+      "symbol": "DOT",
+      "coingecko_id": "polkadot",
+      "names": { "en": "Polkadot", "zh-Hans": "波卡" },
+      "aliases": { "en": ["polkadot", "dot"], "zh-Hans": ["波卡", "dot", "polkadot"] }
+    },
+    {
+      "symbol": "AVAX",
+      "coingecko_id": "avalanche-2",
+      "names": { "en": "Avalanche", "zh-Hans": "雪崩协议" },
+      "aliases": { "en": ["avalanche", "avax"], "zh-Hans": ["雪崩", "雪崩协议", "avax", "avalanche"] }
+    },
+    {
+      "symbol": "MATIC",
+      "coingecko_id": "matic-network",
+      "names": { "en": "Polygon", "zh-Hans": "Polygon" },
+      "aliases": { "en": ["polygon", "matic"], "zh-Hans": ["polygon", "matic", "马蹄", "马蹄币"] }
+    },
+    {
+      "symbol": "LTC",
+      "coingecko_id": "litecoin",
+      "names": { "en": "Litecoin", "zh-Hans": "莱特币" },
+      "aliases": { "en": ["litecoin", "ltc"], "zh-Hans": ["莱特币", "ltc", "litecoin"] }
+    },
+    {
+      "symbol": "TRX",
+      "coingecko_id": "tron",
+      "names": { "en": "TRON", "zh-Hans": "波场" },
+      "aliases": { "en": ["tron", "trx"], "zh-Hans": ["波场", "trx", "tron"] }
+    }
+  ]
+}
+

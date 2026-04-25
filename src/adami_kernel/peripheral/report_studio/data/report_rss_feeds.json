@@ -1,0 +1,41 @@
+{
+  "schema_version": 2,
+  "document": "Whitelist RSS. Prefer vertical/section feeds (e.g. Yahoo Finance). Replace URLs if a feed returns HTML or 404.",
+  "world_media": [
+    {"name": "Yahoo News — World", "url": "https://news.yahoo.com/rss/world"},
+    {"name": "Yahoo News — US", "url": "https://news.yahoo.com/rss/us"},
+    {"name": "BBC World", "url": "http://feeds.bbci.co.uk/news/world/rss.xml"},
+    {"name": "The Guardian World", "url": "https://www.theguardian.com/world/rss"}
+  ],
+  "ai_media": [
+    {"name": "MIT Technology Review", "url": "https://www.technologyreview.com/feed/"},
+    {"name": "IEEE Spectrum", "url": "https://spectrum.ieee.org/feeds/feed.rss"},
+    {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml"},
+    {"name": "ArXiv cs.AI", "url": "http://arxiv.org/rss/cs.AI"}
+  ],
+  "finance": [
+    {"name": "Yahoo Finance — Latest", "url": "https://finance.yahoo.com/news/rssindex"},
+    {"name": "Yahoo Finance — Headlines", "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?region=US&lang=en-US"},
+    {"name": "MarketWatch", "url": "https://www.marketwatch.com/rss/topstories"},
+    {"name": "CNBC Top News", "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html"}
+  ],
+  "world_web_hotspot_queries": [
+    "yahoo finance market news today",
+    "international business headlines"
+  ],
+  "ddg_domain_blacklist_substrings": [
+    "pinterest.",
+    "pin.it",
+    "facebook.com/l.php",
+    "etsy.com/uk/",
+    "tiktok.com",
+    "amazon.com/hp",
+    "espn.com",
+    "sports.yahoo",
+    "fantasy.",
+    "reddit.com/r/"
+  ],
+  "github_repo_search_query": "is:public archived:false fork:false stars:>500",
+  "github_ai_search_query": "is:public archived:false fork:false stars:>500",
+  "github_repo_search_per_page": 40
+}

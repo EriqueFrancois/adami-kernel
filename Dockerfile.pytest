@@ -1,0 +1,16 @@
+FROM python:3.13-slim
+
+# 本镜像仅作 DreamSandbox 内 pytest 执行环境；AdamI 内核容器请在运行镜像上设置
+# ADAMI_RUNTIME_PROFILE=production（或依赖 /.dockerenv 自动识别）以启用生产安全默认项。
+
+# 预安装 pytest 及 JSON 报告插件，避免每次运行时重复安装
+RUN pip install --no-cache-dir --root-user-action=ignore \
+    pytest \
+    pytest-json-report \
+    pytest-asyncio
+
+# 设置工作目录
+WORKDIR /sandbox
+
+# 默认命令（可选）
+CMD ["pytest", "--version"]

@@ -1,0 +1,47 @@
+# Auto-generated from pyproject.toml (direct dependencies only).
+# Recommended install: `poetry install` (uses poetry.lock for full reproducibility).
+
+# Optional extras:
+# - training: `pip install -e ".[training]"` (requires Poetry/PEP660 build) or `poetry install -E training`
+# - mcp-agent: `poetry install -E mcp-agent`
+#
+# NOTE: `requirements.txt` is intended for pip users. For a fully reproducible environment,
+# prefer `poetry install` which uses `poetry.lock`.
+
+aiofiles>=25.1.0,<26.0.0
+aiogram>=3.27.0,<4.0.0
+aiosqlite>=0.20.0,<0.21.0
+beautifulsoup4>=4.14.3,<5.0.0
+chromadb>=1.5.5,<2.0.0
+cryptography>=46.0.0,<47.0.0
+ddgs>=9.11.2,<10.0.0
+discord-py[voice]>=2.7.1,<3.0.0
+docker>=7.1.0,<8.0.0
+duckduckgo-search>=8.1.1,<9.0.0
+fastapi>=0.135.3,<0.136.0
+feedparser>=6.0.11,<7.0.0
+githubkit>=0.12.0,<0.13.0
+httpx>=0.28.1,<0.29.0
+jinja2>=3.1.6,<4.0.0
+markdownify>=1.2.2,<2.0.0
+markitdown[pdf,docx,pptx,xlsx]>=0.1.5,<0.2.0
+mlx-lm>=0.31.1,<0.32.0
+numpy>=2.1.3,<3
+ollama>=0.6.1,<0.7.0
+openai>=2.8.0,<3.0.0
+# Pinned to `poetry.lock` to avoid pip resolver backtracking.
+opentelemetry-api==1.40.0
+opentelemetry-exporter-otlp-proto-grpc==1.40.0
+opentelemetry-instrumentation-fastapi==0.61b0
+opentelemetry-instrumentation-httpx==0.61b0
+opentelemetry-sdk==1.40.0
+pillow>=12.1.1,<13.0.0
+psutil>=6.1.0,<7.0.0
+pyautogui>=0.9.54,<0.10.0
+pydantic-settings>=2.6.0,<3.0.0
+pydantic>=2.6.0,<3.0.0
+python-dotenv>=1.2.2,<2.0.0
+python-frontmatter>=1.1.0,<2.0.0
+rich>=13.9.4,<14
+setuptools>=70.0.0,<71.0.0
+uvicorn>=0.44.0,<0.45.0

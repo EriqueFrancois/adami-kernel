@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "document": "AdamI 内核识别的系统/斜杠指令清单（与 intent_router system 模式、端口入口一致）。Telegram 通过 setMyCommands 在输入 / 时提示；Discord 通过 Application Commands 注册同名斜杠。",
+  "commands": [
+    {"id": "menu", "slash": "/menu", "telegram_command": "menu", "discord_register": true, "category": "ports", "description_en": "Show AdamI entry menu (same as menu button).", "description_zh": "显示 AdamI 入口菜单（与菜单按钮一致）。", "examples": ["/menu", "menu"]},
+    {"id": "report", "slash": "/report …", "telegram_command": "report", "discord_register": true, "category": "report_studio", "description_en": "Report studio: help, list, show, set, run (daily|weekly|monthly).", "description_zh": "简报工作室：help / list / show / set / run（daily|weekly|monthly）。", "examples": ["/report help", "/report list", "/report run daily"]},
+    {"id": "reports", "slash": "/reports …", "telegram_command": null, "discord_register": false, "category": "report_studio", "description_en": "Alias of /report (text only).", "description_zh": "与 /report 等价（仅文本输入）。", "examples": ["/reports help"]},
+    {"id": "maintain", "slash": "/maintain", "telegram_command": "maintain", "discord_register": true, "category": "system", "description_en": "Full-library / PARA maintenance diagnostics.", "description_zh": "全库 / PARA 维护诊断。", "examples": ["/maintain", "维护", "全库诊断"]},
+    {"id": "writing", "slash": "/writing …", "telegram_command": "writing", "discord_register": true, "category": "system", "description_en": "Resources-backed writing mode (/writing or 写作：…).", "description_zh": "基于 Resources 的写作模式（/writing 或 写作：…）。", "examples": ["/writing", "/writing outline", "写作：摘要"]},
+    {"id": "writing_zh", "slash": "/写作 …", "telegram_command": null, "discord_register": false, "category": "system", "description_en": "Chinese slash for writing may be typed as plain text 写作：… (see /writing).", "description_zh": "中文写作入口请用「写作：…」或文本发送 /writing（Telegram 命令名仅 ASCII）。", "examples": ["/写作 大纲", "写作：摘要"]},
+    {"id": "digest", "slash": "/digest", "telegram_command": "digest", "discord_register": true, "category": "system", "description_en": "Digest brain candidates / preferences pipeline.", "description_zh": "消化候选池 / 偏好整理流程。", "examples": ["/digest", "整理偏好", "消化候选池", "更新偏好"]},
+    {"id": "intake", "slash": "/intake", "telegram_command": "intake", "discord_register": true, "category": "system", "description_en": "Archive / intake short knowledge note.", "description_zh": "归档 / 摄入短知识笔记。", "examples": ["/intake", "归档", "记下来"]},
+    {"id": "task", "slash": "/task …", "telegram_command": "task", "discord_register": true, "category": "productivity", "description_en": "Append a line to tasks.md (with body after /task).", "description_zh": "追加待办到 tasks.md（/task 后接正文）。", "examples": ["/task buy milk", "/task 回邮件"]},
+    {"id": "todo", "slash": "/todo …", "telegram_command": "todo", "discord_register": true, "category": "productivity", "description_en": "Same as /task (TASK_NOTE).", "description_zh": "与 /task 相同（待办笔记）。", "examples": ["/todo remind me"]},
+    {"id": "force_optimize", "slash": "/force_optimize SKILL", "telegram_command": "force_optimize", "discord_register": true, "category": "skills", "description_en": "Force-optimize a skill by name (UPPER_SNAKE).", "description_zh": "按技能名强制优化（大写下划线）。", "examples": ["/force_optimize WEATHER_QUERY"]},
+    {"id": "optimize", "slash": "/optimize SKILL", "telegram_command": "optimize", "discord_register": true, "category": "skills", "description_en": "Alias of /force_optimize.", "description_zh": "/force_optimize 的别名。", "examples": ["/optimize WEATHER_QUERY"]},
+    {"id": "status", "slash": "/status", "telegram_command": "status", "discord_register": true, "category": "system", "description_en": "System status / health style query.", "description_zh": "系统状态 / 健康类查询。", "examples": ["/status", "系统状态", "health"]},
+    {"id": "sleep", "slash": "(natural language)", "telegram_command": null, "discord_register": false, "category": "system", "description_en": "Sleep / pause bot session (Chinese phrases in router).", "description_zh": "休眠/暂停（见意图路由中文短语）。", "examples": ["休眠", "sleep", "暂停"]},
+    {"id": "wake", "slash": "(natural language)", "telegram_command": null, "discord_register": false, "category": "system", "description_en": "Wake / resume session.", "description_zh": "唤醒/继续。", "examples": ["唤醒", "wake", "继续工作"]},
+    {"id": "clear_cache", "slash": "(natural language)", "telegram_command": null, "discord_register": false, "category": "system", "description_en": "Clear cache / reset context (router phrases).", "description_zh": "清空缓存/重置上下文（路由短语）。", "examples": ["清空缓存", "clear cache"]},
+    {"id": "list_memory", "slash": "(natural language)", "telegram_command": null, "discord_register": false, "category": "system", "description_en": "List memory / history (router phrases).", "description_zh": "列出记忆/历史（路由短语）。", "examples": ["列出所有记忆", "list memory"]},
+    {"id": "start_evolution", "slash": "(natural language)", "telegram_command": null, "discord_register": false, "category": "system", "description_en": "Start proactive evolution (router phrases).", "description_zh": "启动主动进化（路由短语）。", "examples": ["开始主动进化", "启动进化"]},
+    {"id": "report_wizard", "slash": "(text trigger)", "telegram_command": null, "discord_register": false, "category": "report_studio", "description_en": "Open Report wizard UI (port_report_text_triggers).", "description_zh": "打开简报向导界面（见端口触发词）。", "examples": ["/report wizard", "/report config", "report:wizard"]},
+    {"id": "adamih", "slash": "/adamih", "telegram_command": "adamih", "discord_register": true, "category": "help", "description_en": "Show this command list (short) in chat.", "description_zh": "在对话中显示本命令列表（摘要）。", "examples": ["/adamih"]}
+  ],
+  "telegram_notes": [
+    "Telegram Bot API command names: lowercase a-z, 0-9, underscore only; max 32 chars; no leading slash in API field.",
+    "Entries with telegram_command null are text-only (no BotCommand entry).",
+    "Command /写作 may be unsupported on some clients; use /writing."
+  ],
+  "discord_notes": [
+    "Slash commands sync globally on ready (visible in DMs and every guild). Set DISCORD_SLASH_GUILD_ID only for dev guild-only instant sync.",
+    "Discord slash `report` accepts optional text argument passed as `/report <args>`. Bot invite URL must include the `applications.commands` scope."
+  ]
+}

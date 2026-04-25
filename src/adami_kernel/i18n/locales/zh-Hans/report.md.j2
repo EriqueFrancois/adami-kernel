@@ -1,0 +1,91 @@
+# {{ title }}
+
+> {{ labels.meta_period }}：{{ period_start }} → {{ period_end }} · {{ labels.meta_timezone }}：{{ timezone }} · {{ labels.meta_type }}：{{ labels.kind_display }}
+
+## 1) {{ labels.section_system }}（前 {{ data.system_updates.top_n }} 条）
+{% for item in data.system_updates["items"] %}
+### {{ loop.index }}. {{ item.title }}
+{{ item.summary }}
+{% if not loop.last %}
+
+---
+{% endif %}
+{% endfor %}
+
+## 2) {{ labels.section_world_news }}
+{% set wn = data.world_news %}
+{% if wn["items"] or wn.get("web_hotspot_items") %}
+{% for item in wn["items"] %}
+### {{ loop.index }}. {{ item.title }}{% if item.link %}（[{{ labels.source_link }}]({{ item.link }})）{% endif %}
+{{ item.summary }}
+{% if not loop.last %}
+
+---
+{% endif %}
+{% endfor %}
+{% set n0 = (wn["items"]|length) %}
+{% for item in wn.get("web_hotspot_items") or [] %}
+### {{ n0 + loop.index }}. {{ item.title }}{% if item.link %}（[{{ labels.source_link }}]({{ item.link }})）{% endif %}
+{{ item.summary }}
+{% if not loop.last %}
+
+---
+{% endif %}
+{% endfor %}
+{% else %}
+> {{ labels.empty_world_news }}
+{% endif %}
+
+## 3) {{ labels.section_ai }}
+{% set ap = data.ai_progress %}
+{% if ap.get("github_items") or ap.get("media_items") %}
+{% for item in ap.get("github_items") or [] %}
+### {{ loop.index }}. {{ item.title }}{% if item.link %}（[{{ labels.source_link }}]({{ item.link }})）{% endif %}
+{{ item.summary }}
+{% if not loop.last %}
+
+---
+{% endif %}
+{% endfor %}
+{% set n1 = ((ap.get("github_items") or [])|length) %}
+{% for item in ap.get("media_items") or [] %}
+### {{ n1 + loop.index }}. {{ item.title }}{% if item.link %}（[{{ labels.source_link }}]({{ item.link }})）{% endif %}
+{{ item.summary }}
+{% if not loop.last %}
+
+---
+{% endif %}
+{% endfor %}
+{% else %}
+> {{ labels.empty_ai }}
+{% endif %}
+
+## 4) {{ labels.section_market }}
+{% if data.market_moves["items"] %}
+{% for item in data.market_moves["items"] %}
+### {{ loop.index }}. {{ item.title }}{% if item.link %}（[{{ labels.source_link }}]({{ item.link }})）{% endif %}
+{{ item.summary }}
+{% if not loop.last %}
+
+---
+{% endif %}
+{% endfor %}
+{% else %}
+> {{ labels.empty_market }}
+{% endif %}
+
+## 5) {{ labels.section_crypto }}（BTC / ETH / SOL）
+{% if data.crypto_spot and data.crypto_spot.get("items") %}
+{% for row in data.crypto_spot["items"] %}
+### {{ row.symbol }} — {{ row.name }}
+- **USD：** ${{ row.price_usd_display }}
+{% if row.change_24h_display %}- **24h：** {{ row.change_24h_display }}{% endif %}
+{% if row.updated_ts %}- **{{ labels.crypto_asof }}：** `{{ row.updated_ts }}`{% endif %}
+{% if not loop.last %}
+
+---
+{% endif %}
+{% endfor %}
+{% else %}
+> {{ (data.crypto_spot and data.crypto_spot.get("error_user")) or labels.empty_crypto }}
+{% endif %}

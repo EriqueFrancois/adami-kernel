@@ -1,0 +1,33 @@
+node_modules
+.env
+
+# OS / IDE
+.DS_Store
+.cursor/
+.vscode/
+.idea/
+
+# Runtime data (never commit)
+.adami_data/
+.adami_sandbox/
+TempFiles/
+
+# Python caches
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+
+# Logs / reports produced locally
+*.log
+pytest_resume.log
+pytest_resume.xml
+.pytest_hang_debug.log
+.pytest_hang_lldb.log
+
+# Virtualenvs
+.venv/
+
+# 由 scripts/scan_user_visible_string_candidates.py 生成的候选表（可本地重新生成）
+reports/

@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "kernel_root": "tests/fixtures/cjk_gate_stub",
+  "scan_globs": ["unallowlisted_bad.py"],
+  "path_segment_whitelist": [],
+  "legacy_file_allowlist": []
+}

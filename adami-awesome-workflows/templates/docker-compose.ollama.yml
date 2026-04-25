@@ -1,0 +1,20 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: adami-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+  # This compose file is intentionally minimal. AdamI can run in its own container too,
+  # but teams often integrate it into their existing runtime (systemd/k8s).
+  #
+  # If you want AdamI in Docker, create an image from this repo and add a service here:
+  # - mount `.env` and `.adami_data`
+  # - set OLLAMA_HOST to http://ollama:11434
+
+volumes:
+  ollama:
+

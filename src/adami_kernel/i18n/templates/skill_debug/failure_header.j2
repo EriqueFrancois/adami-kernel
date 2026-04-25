@@ -1,0 +1,10 @@
+# ================================================
+# AdamI debug artifact — skill generation failure
+# Skill: {{ skill_name }}
+# Error type: {{ error_type }}
+# Timestamp: {{ timestamp }}
+# Details:
+{% for line in error_info.splitlines() %}
+# {{ line }}
+{% endfor %}
+# ================================================

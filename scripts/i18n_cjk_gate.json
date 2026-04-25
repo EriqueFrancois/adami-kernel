@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "description": "Step 7：A 类路径裸中文字面量门禁。legacy_file_allowlist 与当前扫描命中 1:1；逐项迁移后从清单删除。",
+  "kernel_root": "src/adami_kernel",
+  "scan_globs": [
+    "**/*.py"
+  ],
+  "path_segment_whitelist": [
+    "telemetry",
+    "observability"
+  ],
+  "legacy_file_allowlist": []
+}

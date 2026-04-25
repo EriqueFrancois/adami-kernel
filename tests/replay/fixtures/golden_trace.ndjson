@@ -1,0 +1,3 @@
+{"schema_version":"adami_replay_trace.v1","ts":1000.0,"trace_id":"golden-1","episode_id":"ep-demo","source_module":"sensory.cli","target_topic":"system.events","event_type":"adami_event","payload_redacted":{"task":"hello","platform":"cli"}}
+{"schema_version":"adami_replay_trace.v1","ts":1001.5,"trace_id":"golden-2","episode_id":"ep-demo","source_module":"cortex.decision","target_topic":"system.events","event_type":"adami_event","payload_redacted":{"task":"hello","phase":"route"}}
+{"schema_version":"adami_replay_trace.v1","ts":1003.0,"trace_id":"golden-3","episode_id":null,"source_module":"peripheral.circadian","target_topic":"system.events","event_type":"adami_event","payload_redacted":{"kind":"tick"}}
