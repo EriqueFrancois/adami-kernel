@@ -95,6 +95,8 @@ jobs:
     needs: [lint-and-gates]
     env:
       PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+      PYTHONASYNCIODEBUG: "1"
+      PYTHONWARNINGS: "default"
     steps:
       - name: Checkout (manual)
         run: |
@@ -158,6 +160,18 @@ jobs:
           sys.stderr.flush()
           os._exit(r.returncode)
           PY
+      - name: Cleanup — kill stray processes (best-effort)
+        if: always()
+        run: |
+          set -euo pipefail
+          echo "== process snapshot =="
+          ps -eo pid,ppid,stat,etime,cmd | head -n 40 || true
+          echo "== kill common strays =="
+          pkill -f "uvicorn" || true
+          pkill -f "pytest" || true
+          pkill -f "python -m pytest" || true
+          pkill -f "adami_kernel" || true
+          echo "== done =="
 
   # Step 7: real MarkItDown + bridge matrix (extra not in default ``poetry install``).
   markitdown-bridge:
