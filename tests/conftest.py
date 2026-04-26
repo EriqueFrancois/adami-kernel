@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import threading
 
 import pytest
 
@@ -32,3 +34,30 @@ async def _cleanup_background_tasks() -> None:
 
     await asyncio.gather(*pending, return_exceptions=True)
 
+
+def pytest_sessionfinish(session: object, exitstatus: int) -> None:
+    """Last-resort guard: detect non-daemon threads and force-exit.
+
+    GitHub Actions can hang even after pytest prints the final summary if the Python
+    interpreter is kept alive by non-daemon threads (e.g. telemetry exporters, thread
+    pools, subprocess waiters). When detected, print the culprit thread names and
+    force the process to exit with the pytest exit status.
+    """
+    main = threading.main_thread()
+    hanging: list[threading.Thread] = []
+    for t in threading.enumerate():
+        if t is main:
+            continue
+        if t.is_alive() and (not t.daemon):
+            hanging.append(t)
+
+    if not hanging:
+        return
+
+    print("\n" + "=" * 60)
+    print("WARNING: pytest finished but non-daemon threads are still alive:")
+    for t in hanging:
+        print(f" - name={t.name!r} ident={t.ident} daemon={t.daemon}")
+    print("=" * 60 + "\n")
+    print("Forcing process exit via os._exit() to avoid CI hang.")
+    os._exit(exitstatus)
