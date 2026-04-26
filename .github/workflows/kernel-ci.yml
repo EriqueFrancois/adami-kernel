@@ -111,12 +111,12 @@ jobs:
         run: poetry install
       - name: Intent adaptive — offline test matrix (Step 9)
         run: |
-          timeout 20m poetry run pytest \
+          timeout 20m poetry run pytest -p pytest_asyncio \
             tests/test_intent_adaptive_* \
             tests/test_i18n_locale_key_parity.py \
             -q --tb=short
       - name: Kernel Core Tests (exclude integration + stress)
-        run: timeout 35m poetry run pytest -m "not integration and not stress" --tb=short
+        run: timeout 35m poetry run pytest -p pytest_asyncio -m "not integration and not stress" --tb=short
 
   # Step 7: real MarkItDown + bridge matrix (extra not in default ``poetry install``).
   markitdown-bridge:
@@ -140,7 +140,7 @@ jobs:
       - name: Install deps (markitdown extra)
         run: poetry install -E markitdown
       - name: MarkItDown bridge — real docx + mocked-failure → fake unstructured
-        run: poetry run pytest tests/test_markitdown_bridge.py -q --tb=short
+        run: poetry run pytest -p pytest_asyncio tests/test_markitdown_bridge.py -q --tb=short
 
   replay-traces:
     runs-on: ubuntu-latest
@@ -164,7 +164,7 @@ jobs:
         run: poetry install
       - name: Sim — golden NDJSON replay & step 2 acceptance
         run: |
-          poetry run pytest tests/replay/ \
+          poetry run pytest -p pytest_asyncio tests/replay/ \
             tests/test_acceptance_sim_step2_replay.py \
             -q --tb=short
 
@@ -192,4 +192,4 @@ jobs:
       - name: Stress — replay + parallel validate (threshold 0 = any failure fails job)
         env:
           STRESS_FAILURE_THRESHOLD: "0"
-        run: poetry run pytest -m stress -q --tb=short
+        run: poetry run pytest -p pytest_asyncio -m stress -q --tb=short
