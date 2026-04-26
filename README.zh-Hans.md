@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./20260328_Adami_workflow.png" alt="AdamI Logo" width="220" />
+  <img src="./adami_workflow.png" alt="AdamI 工作流图" width="260" />
 </p>
 
 <p align="center">

@@ -5,12 +5,6 @@ poetry run python src/adami_kernel/kernel.py
 cd ~/adami-kernel
 tail -f .adami_data/kernel.log
 
-# Sim integration plan (acceptance test expects this link)
-docs/sim_integration_plan.md
-
-# DeerFlow boundary doc (acceptance test expects this link)
-docs/deer_flow_alignment_and_boundary.md
-
 cd frontend
 npm run dev
 
@@ -70,16 +64,6 @@ sudo systemctl status ollama --no-pager
 
 
 # #######################################################################################
-
-
-
-
-
-
-
-
-
-
 
 
 
