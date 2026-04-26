@@ -93,6 +93,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: [lint-and-gates]
+    env:
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
     steps:
       - name: Checkout (manual)
         run: |
@@ -109,18 +111,20 @@ jobs:
         run: poetry install
       - name: Intent adaptive — offline test matrix (Step 9)
         run: |
-          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 poetry run pytest \
+          timeout 20m poetry run pytest \
             tests/test_intent_adaptive_* \
             tests/test_i18n_locale_key_parity.py \
             -q --tb=short
       - name: Kernel Core Tests (exclude integration + stress)
-        run: poetry run pytest -m "not integration and not stress" --tb=short
+        run: timeout 35m poetry run pytest -m "not integration and not stress" --tb=short
 
   # Step 7: real MarkItDown + bridge matrix (extra not in default ``poetry install``).
   markitdown-bridge:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [lint-and-gates]
+    env:
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
     steps:
       - name: Checkout (manual)
         run: |
@@ -142,6 +146,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [lint-and-gates]
+    env:
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
     steps:
       - name: Checkout (manual)
         run: |
@@ -167,6 +173,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: [lint-and-gates]
+    env:
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
     steps:
       - name: Checkout (manual)
         run: |
