@@ -12,6 +12,11 @@ node_modules
 .adami_sandbox/
 TempFiles/
 
+# --- Repo-bundled skill examples (allowlisted) ---
+!.adami_data/
+!.adami_data/skills/
+!.adami_data/skills/LAST30DAYS_DIGEST.py
+
 # Python caches
 __pycache__/
 .pytest_cache/

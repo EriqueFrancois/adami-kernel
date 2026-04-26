@@ -5,6 +5,10 @@ poetry run python src/adami_kernel/kernel.py
 cd ~/adami-kernel
 tail -f .adami_data/kernel.log
 
+# Architecture / boundary docs (used by acceptance checks)
+docs/sim_integration_plan.md
+docs/deer_flow_alignment_and_boundary.md
+
 cd frontend
 npm run dev
 
