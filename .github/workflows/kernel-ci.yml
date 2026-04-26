@@ -18,6 +18,7 @@ on:
 jobs:
   compliance-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -70,6 +71,7 @@ jobs:
   # Step 7: real MarkItDown + bridge matrix (extra not in default ``poetry install``).
   markitdown-bridge:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -82,6 +84,7 @@ jobs:
 
   replay-traces:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -98,6 +101,7 @@ jobs:
   replay-stress:
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
