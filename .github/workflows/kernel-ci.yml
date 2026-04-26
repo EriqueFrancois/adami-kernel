@@ -1,6 +1,10 @@
 # 与仓库根目录 ci.yml 保持同步（步骤 5：replay 门禁 + 可选 stress）
 name: Kernel CI/CD Gate
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]
