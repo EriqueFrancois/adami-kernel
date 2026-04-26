@@ -113,12 +113,51 @@ jobs:
         run: poetry run python -c "import pytest_asyncio; print('pytest-asyncio', getattr(pytest_asyncio, '__version__', 'unknown'))"
       - name: Intent adaptive — offline test matrix (Step 9)
         run: |
-          timeout 20m poetry run pytest -p pytest_asyncio.plugin \
-            tests/test_intent_adaptive_* \
-            tests/test_i18n_locale_key_parity.py \
-            -q --tb=short
+          timeout 20m poetry run python - <<'PY'
+          from __future__ import annotations
+          import os
+          import subprocess
+          import sys
+          
+          args = [
+              sys.executable,
+              "-m",
+              "pytest",
+              "-p",
+              "pytest_asyncio.plugin",
+              "tests/test_intent_adaptive_*",
+              "tests/test_i18n_locale_key_parity.py",
+              "-q",
+              "--tb=short",
+          ]
+          r = subprocess.run(args)
+          sys.stdout.flush()
+          sys.stderr.flush()
+          os._exit(r.returncode)
+          PY
       - name: Kernel Core Tests (exclude integration + stress)
-        run: timeout 35m poetry run pytest -p pytest_asyncio.plugin -m "not integration and not stress" --tb=short
+        run: |
+          timeout 35m poetry run python - <<'PY'
+          from __future__ import annotations
+          import os
+          import subprocess
+          import sys
+          
+          args = [
+              sys.executable,
+              "-m",
+              "pytest",
+              "-p",
+              "pytest_asyncio.plugin",
+              "-m",
+              "not integration and not stress",
+              "--tb=short",
+          ]
+          r = subprocess.run(args)
+          sys.stdout.flush()
+          sys.stderr.flush()
+          os._exit(r.returncode)
+          PY
 
   # Step 7: real MarkItDown + bridge matrix (extra not in default ``poetry install``).
   markitdown-bridge:
