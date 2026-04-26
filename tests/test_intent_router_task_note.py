@@ -24,4 +24,7 @@ def test_task_note_phrases_route_to_system_action_and_log(caplog):
         kind, data = asyncio.run(router.route_task(text))
         assert kind == "SYSTEM_ACTION", text
         assert data == IntentSystemToken.TASK_NOTE.value, text
-        assert any("TASK_NOTE 已匹配" in r.message for r in caplog.records), text
+        assert any(
+            ("TASK_NOTE 已匹配" in r.message) or ("TASK_NOTE matched" in r.message)
+            for r in caplog.records
+        ), text

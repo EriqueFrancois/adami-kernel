@@ -7,22 +7,21 @@ from typing import Optional
 
 from adami_kernel.i18n.boot_msg import boot_t
 
-_TASKS_MD_HEADING_TODO = boot_t("cjk_gate.tasks_md_heading_todo")
-
 
 def append_checkbox_under_todo_section(content: str, body: str, date_s: str) -> str:
     """在「## 待办」段末尾插入一行 `- [ ] … | 📅 …`；无该标题则在文末补段。"""
+    todo_heading = boot_t("cjk_gate.tasks_md_heading_todo")
     line = f"- [ ] {body} | 📅 {date_s}"
     lines = content.split("\n")
     idx: Optional[int] = None
     for i, ln in enumerate(lines):
-        if ln.strip() == _TASKS_MD_HEADING_TODO:
+        if ln.strip() == todo_heading:
             idx = i
             break
     if idx is None:
         tail = content.rstrip()
         sep = "\n\n" if tail else ""
-        return f"{tail}{sep}{_TASKS_MD_HEADING_TODO}\n{line}\n"
+        return f"{tail}{sep}{todo_heading}\n{line}\n"
     j = idx + 1
     while j < len(lines) and not lines[j].startswith("## "):
         j += 1

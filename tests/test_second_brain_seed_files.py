@@ -19,9 +19,9 @@ def test_initialize_seeds_tasks_and_pending_approvals():
     assert pending.is_file()
     t = tasks.read_text(encoding="utf-8")
     p = pending.read_text(encoding="utf-8")
-    assert "# 任务池" in t
-    assert "## 焦点（最重要的 1-3 件）" in t
-    assert "## 待办" in t
-    assert "## 已完成" in t
-    assert "# 审批队列" in p
-    assert "## 待审批" in p
+    assert ("# 任务池" in t) or ("# Tasks" in t)
+    assert ("## 焦点（最重要的 1-3 件）" in t) or ("## Focus" in t)
+    assert ("## 待办" in t) or ("## To-do" in t) or ("## To-Do" in t)
+    assert ("## 已完成" in t) or ("## Done" in t)
+    assert ("# 审批队列" in p) or ("# Approvals" in p) or ("# Approval queue" in p)
+    assert ("## 待审批" in p) or ("## Pending" in p)

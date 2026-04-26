@@ -11,6 +11,9 @@ import pytest
 import adami_kernel.config as config
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_create_new_skill_template_weather_pipeline(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch

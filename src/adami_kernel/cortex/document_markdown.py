@@ -198,12 +198,6 @@ async def convert_document_path_to_markdown(
     When ``timeout_s`` / ``max_input_bytes`` are omitted, values come from ``Settings``
     (``ADAMI_DOCUMENT_MARKDOWN_TIMEOUT_SEC``, ``ADAMI_DOCUMENT_MARKDOWN_MAX_INPUT_BYTES``).
     """
-    if markitdown_import_spec() is None:
-        return DocumentMarkdownFailure(
-            reason=DocumentMarkdownFailureReason.NOT_INSTALLED,
-            detail="install optional extra: poetry install -E markitdown",
-        )
-
     p = Path(path)
     ext = normalized_allowed_extension(p.name)
     if ext is None:
@@ -243,6 +237,12 @@ async def convert_document_path_to_markdown(
                 reason=DocumentMarkdownFailureReason.FILE_TOO_LARGE,
                 detail=f"bytes={sz} max={max_in}",
             )
+
+    if markitdown_import_spec() is None:
+        return DocumentMarkdownFailure(
+            reason=DocumentMarkdownFailureReason.NOT_INSTALLED,
+            detail="install optional extra: poetry install -E markitdown",
+        )
 
     budget = DEFAULT_MARKDOWN_CHAR_BUDGET if max_output_chars is None else max_output_chars
     if budget < 1:

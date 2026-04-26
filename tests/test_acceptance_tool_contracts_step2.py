@@ -87,15 +87,20 @@ def test_ac_2_3_get_registered_tools_for_llm_from_contracts(tmp_path: Path) -> N
     ee = EvolutionEngine(toolbox=None, base_dir=str(tmp_path))
     ee.register_tool("ZETA", {"type": "object"}, "z")
     text = ee.get_registered_tools_for_llm()
-    assert "【🛠️ 已注册工具（JSON Schema 格式）】" in text
-    assert "工具: ZETA" in text
-    assert "LLM 必须严格按照 Schema 输出参数！" in text
+    assert (
+        "【🛠️ 已注册工具（JSON Schema 格式）】" in text
+        or "【🛠️ Registered tools (JSON Schema)】" in text
+    )
+    assert ("工具: ZETA" in text) or ("Tool: ZETA" in text)
+    assert ("LLM 必须严格按照 Schema 输出参数！" in text) or (
+        "The LLM must follow each tool Schema exactly" in text
+    )
 
 
 def test_ac_2_4_truncation_hint() -> None:
     caps = [tool_capability_native(f"ID{i}", {"type": "object"}, "d") for i in range(30)]
     frag = to_llm_prompt_fragment(caps, max_chars=180)
-    assert "截断" in frag
+    assert ("截断" in frag) or ("truncated" in frag.lower())
     assert len(frag) <= 280
 
 

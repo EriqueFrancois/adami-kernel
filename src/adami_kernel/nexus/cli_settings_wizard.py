@@ -53,6 +53,11 @@ _CATEGORIES: List[Tuple[str, str]] = [
     ("other", "settings.category.other"),
 ]
 
+
+def _category_title(label_or_key: str) -> str:
+    # If it's an i18n key, translate; otherwise treat as literal label.
+    return _wizard_t(label_or_key) if label_or_key.startswith("settings.") else label_or_key
+
 _MCP_SERVERS_JSON_TEMPLATE = (
     "[\n"
     "  {\n"
@@ -328,7 +333,7 @@ async def run_cli_settings_wizard(console: Console) -> None:
         for i, (cid, title_key) in enumerate(_CATEGORIES, start=1):
             n = len(by_cat.get(cid, []))
             table.add_row(
-                str(i), _wizard_t(title_key), _wizard_t("settings.cli.items_count", count=n)
+                str(i), _category_title(title_key), _wizard_t("settings.cli.items_count", count=n)
             )
         console.print(table)
         console.print(f"[bold]{_wizard_t('settings.cli.pick_category')}[/bold]: ", end="")
@@ -368,7 +373,7 @@ async def _category_submenu(console: Console, category_id: str, fields: List[str
     from adami_kernel import config as config_mod
 
     title_key = next((k for cid, k in _CATEGORIES if cid == category_id), "settings.category.other")
-    title = _wizard_t(title_key)
+    title = _category_title(title_key)
     s = config_mod.settings
 
     while True:

@@ -445,10 +445,10 @@ def test_step8_readme_has_optional_capabilities_section() -> None:
 
 
 def test_step8_no_changelog_file_convention_documented() -> None:
-    assert not (_root() / "CHANGELOG.md").is_file()
-    assert not (_root() / "CHANGELOG").is_file()
     readme = (_root() / "README.md").read_text(encoding="utf-8")
-    assert "CHANGELOG" in readme and "no root" in readme.lower()
+    # Commercial releases ship a root CHANGELOG.md for tags/releases.
+    assert (_root() / "CHANGELOG.md").is_file()
+    assert "CHANGELOG" in readme
 
 
 def test_step8_i18n_keys_present() -> None:

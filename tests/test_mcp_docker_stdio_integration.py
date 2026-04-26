@@ -10,6 +10,9 @@ from adami_kernel.mcp.docker_stdio_runner import McpDockerStdioRunner
 from adami_kernel.mcp.spec import McpServerSpec
 
 
+pytestmark = pytest.mark.integration
+
+
 def _docker_available() -> bool:
     try:
         import docker  # type: ignore

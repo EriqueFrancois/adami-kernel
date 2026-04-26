@@ -53,9 +53,14 @@ def test_to_llm_prompt_fragment_matches_legacy_shape() -> None:
         )
     ]
     frag = to_llm_prompt_fragment(caps)
-    assert "【🛠️ 已注册工具（JSON Schema 格式）】" in frag
-    assert "工具: WEB_SEARCH" in frag
-    assert "LLM 必须严格按照 Schema 输出参数！" in frag
+    assert (
+        "【🛠️ 已注册工具（JSON Schema 格式）】" in frag
+        or "【🛠️ Registered tools (JSON Schema)】" in frag
+    )
+    assert ("工具: WEB_SEARCH" in frag) or ("Tool: WEB_SEARCH" in frag)
+    assert ("LLM 必须严格按照 Schema 输出参数！" in frag) or (
+        "The LLM must follow each tool Schema exactly" in frag
+    )
     assert "query" in frag
 
 
@@ -63,7 +68,7 @@ def test_to_llm_prompt_fragment_max_chars_truncates() -> None:
     caps = [tool_capability_native(f"T{i}", {"type": "object"}, "d") for i in range(20)]
     frag = to_llm_prompt_fragment(caps, max_chars=200)
     assert len(frag) <= 250
-    assert "截断" in frag
+    assert ("截断" in frag) or ("truncated" in frag.lower())
 
 
 def test_registry_exposed_only_and_clear_source() -> None:

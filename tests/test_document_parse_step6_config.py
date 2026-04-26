@@ -22,9 +22,9 @@ def mm() -> MultiModalInput:
 
 def test_markitdown_effective_enabled_false_and_true(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "ADAMI_MARKITDOWN_ENABLED", False)
-    assert markitdown_effective_enabled() is False
+    assert markitdown_effective_enabled(settings) is False
     monkeypatch.setattr(settings, "ADAMI_MARKITDOWN_ENABLED", True)
-    assert markitdown_effective_enabled() is True
+    assert markitdown_effective_enabled(settings) is True
 
 
 def test_markitdown_effective_enabled_auto_uses_find_spec(
@@ -39,7 +39,7 @@ def test_markitdown_effective_enabled_auto_uses_find_spec(
         return orig(name)
 
     monkeypatch.setattr(importlib.util, "find_spec", _fake)
-    assert markitdown_effective_enabled() is False
+    assert markitdown_effective_enabled(settings) is False
 
 
 @pytest.mark.asyncio
@@ -47,8 +47,7 @@ async def test_convert_path_file_too_large(tmp_path: Path, monkeypatch: pytest.M
     p = tmp_path / "x.pdf"
     p.write_bytes(b"%PDF-1.4\nextra")
     monkeypatch.setattr(dm, "markitdown_import_spec", lambda: object())
-    monkeypatch.setattr(settings, "ADAMI_DOCUMENT_MARKDOWN_MAX_INPUT_BYTES", 5)
-    result = await dm.convert_document_path_to_markdown(p)
+    result = await dm.convert_document_path_to_markdown(p, max_input_bytes=5)
     assert isinstance(result, dm.DocumentMarkdownFailure)
     assert result.reason == dm.DocumentMarkdownFailureReason.FILE_TOO_LARGE
 

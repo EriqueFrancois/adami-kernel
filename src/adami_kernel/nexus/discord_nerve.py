@@ -64,6 +64,9 @@ class DiscordNerve(BaseNerve):
     def __init__(self, publish_func):
         super().__init__(publish_func)
 
+        # Always initialize wizard state even if token missing (tests use callback handlers offline).
+        self._report_wizard: Dict[str, Dict[str, Any]] = {}
+
         self.token = settings.DISCORD_BOT_TOKEN
         if not self.token:
             logger.error(boot_t("boot.log.discord_no_token"))
@@ -90,7 +93,7 @@ class DiscordNerve(BaseNerve):
         self._settings_state: Dict[str, ChatSettingsState] = {}
         self._menu_bootstrapped: set[str] = set()
         # report wizard state: channel_id -> dict
-        self._report_wizard: Dict[str, Dict[str, Any]] = {}
+        # (initialized above to support offline tests)
         # on_ready 在重连时会多次触发：避免重复 tree.sync（限流）与重复推送入口菜单
         self._discord_slash_tree_synced: bool = False
         self._discord_on_ready_dm_sent: bool = False
@@ -692,9 +695,7 @@ class DiscordNerve(BaseNerve):
                     pass
 
     # ====================== 【阶段3 新增】Discord 交互按钮发送 ======================
-    async def send_interactive_buttons(
-        self, channel_id: str, text: str, buttons: List[Dict]
-    ) -> bool:
+    async def send_interactive_buttons(self, channel_id: str, text: str, buttons: List[Dict]) -> bool:
         """Discord 版 send_interactive_buttons（与 Telegram 逻辑完全一致）。"""
         if not self.bot or not self.bot.is_ready():
             logger.warning(boot_t("boot.log.discord_buttons_not_ready"))

@@ -35,7 +35,12 @@ def test_step3_language_category_in_cli_wizard() -> None:
     assert "language" in ids
     assert "last30days" in ids
     titles = [t for cid, t in _CATEGORIES if cid == "language"]
-    assert titles and ("语言" in titles[0] or "Language" in titles[0])
+    assert titles
+    # Stored as i18n key; verify at least one locale renders as expected.
+    title_key = titles[0]
+    en = t(title_key, locale="en")
+    zh = t(title_key, locale="zh-Hans")
+    assert ("Language" in en) or ("语言" in zh) or ("Language" in zh)
 
 
 def test_step3_language_fields_in_category() -> None:

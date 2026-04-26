@@ -33,7 +33,7 @@ def test_move_brain_note_projects_and_frontmatter():
 def test_move_brain_note_rejects_outside_brain():
     d = Path(tempfile.mkdtemp(prefix="t3_safe_"))
     sb = SecondBrainManager(str(d))
-    with pytest.raises(ValueError, match="不在 brain 根目录"):
+    with pytest.raises(ValueError, match="不在 brain 根目录|not under the brain root"):
         sb.move_brain_note("/etc/passwd", "inbox")
 
 
@@ -116,7 +116,9 @@ async def test_maintain_action_report_readable():
     assert "诊断" in body or "PARA" in body
     assert "Inbox" in body
     assert "candidates" in body
-    assert "只读" in body or "未执行修复" in body
+    assert ("只读" in body) or ("未执行修复" in body) or ("read-only" in body.lower()) or (
+        "nothing was changed" in body.lower()
+    )
 
 
 @pytest.mark.asyncio

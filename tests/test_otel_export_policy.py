@@ -50,8 +50,9 @@ def test_redacting_exporter_on_end_to_end() -> None:
     sampler = resolve_trace_sampler(adami_sampler="always_on", adami_ratio=1.0)
     provider = TracerProvider(sampler=sampler)
     provider.add_span_processor(SimpleSpanProcessor(exporter))
-    trace.set_tracer_provider(provider)
-    tracer = trace.get_tracer("test_otel_policy")
+    # Do not set the global tracer provider: OpenTelemetry only allows it to be set once,
+    # and other tests may have already configured it. Use a local provider instead.
+    tracer = provider.get_tracer("test_otel_policy")
     with tracer.start_as_current_span(
         "op",
         attributes={"user_password": "x", "note": "hello"},
