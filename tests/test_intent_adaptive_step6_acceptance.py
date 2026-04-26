@@ -34,6 +34,16 @@ _README = _REPO / "README.md"
 _LOCALES = _REPO / "src" / "adami_kernel" / "i18n" / "locales"
 
 
+def _disable_weather_public_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prevent external network calls in CI/unit tests."""
+    from adami_kernel.cortex.intent_adaptive.templates import retrieval_weather as weather_mod
+
+    async def _no_public_api(*_a, **_k):  # noqa: ANN001
+        return ""
+
+    monkeypatch.setattr(weather_mod, "_try_weather_from_public_api", _no_public_api)
+
+
 def _registry_with_builtins() -> TemplateRegistry:
     reg = TemplateRegistry(min_match_score=0.0)
     reg.register(IntentType.UNKNOWN, NoOpTemplateHandler())
@@ -175,10 +185,11 @@ def test_s6_api_prefers_public_api_over_web(monkeypatch: pytest.MonkeyPatch) -> 
     asyncio.run(_run())
 
 
-def test_s6_weather_filters_city_mismatch_noise() -> None:
+def test_s6_weather_filters_city_mismatch_noise(monkeypatch: pytest.MonkeyPatch) -> None:
     from adami_kernel.cortex.intent_adaptive.templates.retrieval_weather import (
         RetrievalWeatherTemplateHandler,
     )
+    _disable_weather_public_api(monkeypatch)
 
     async def _search(*_a, **_k):  # noqa: ANN001
         return [
@@ -212,10 +223,11 @@ def test_s6_weather_filters_city_mismatch_noise() -> None:
     asyncio.run(_run())
 
 
-def test_s6_weather_filters_windy_app_noise() -> None:
+def test_s6_weather_filters_windy_app_noise(monkeypatch: pytest.MonkeyPatch) -> None:
     from adami_kernel.cortex.intent_adaptive.templates.retrieval_weather import (
         RetrievalWeatherTemplateHandler,
     )
+    _disable_weather_public_api(monkeypatch)
 
     async def _search(*_a, **_k):  # noqa: ANN001
         return [
@@ -248,11 +260,14 @@ def test_s6_weather_filters_windy_app_noise() -> None:
     asyncio.run(_run())
 
 
-def test_s6_weather_filters_wrong_province_from_trusted_portal() -> None:
+def test_s6_weather_filters_wrong_province_from_trusted_portal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Regression: asking Lanzhou must not return Henan portal pages."""
     from adami_kernel.cortex.intent_adaptive.templates.retrieval_weather import (
         RetrievalWeatherTemplateHandler,
     )
+    _disable_weather_public_api(monkeypatch)
 
     async def _search(*_a, **_k):  # noqa: ANN001
         return [
@@ -289,7 +304,8 @@ def test_s6_weather_filters_wrong_province_from_trusted_portal() -> None:
 # --- S6-H. Registry resolve + execute (no DecisionProcessor) ---
 
 
-def test_s6h1_resolve_weather_handler_executes_with_marker() -> None:
+def test_s6h1_resolve_weather_handler_executes_with_marker(monkeypatch: pytest.MonkeyPatch) -> None:
+    _disable_weather_public_api(monkeypatch)
     async def _run() -> None:
         reg = _registry_with_builtins()
         c = IntentClassificationResult(
@@ -307,6 +323,7 @@ def test_s6h1_resolve_weather_handler_executes_with_marker() -> None:
             platform="cli",
             trace_id="s6h1",
             classification=c,
+            web_search=lambda *_a, **_k: [],  # noqa: ANN001
         )
         out = await h.execute(ctx)
         assert "<!-- intent-template:" not in out.reply_markdown
