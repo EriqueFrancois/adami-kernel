@@ -10,7 +10,6 @@ import pytest
 
 import adami_kernel.config as config
 
-
 pytestmark = pytest.mark.integration
 
 

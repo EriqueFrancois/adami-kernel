@@ -9,7 +9,6 @@ import adami_kernel.config as config_mod
 from adami_kernel.mcp.docker_stdio_runner import McpDockerStdioRunner
 from adami_kernel.mcp.spec import McpServerSpec
 
-
 pytestmark = pytest.mark.integration
 
 
