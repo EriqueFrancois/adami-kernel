@@ -120,14 +120,20 @@ jobs:
           import os
           import subprocess
           import sys
+          from glob import glob
           
+          intent_tests = sorted(glob("tests/test_intent_adaptive_*.py"))
+          if not intent_tests:
+              print("No intent_adaptive tests matched tests/test_intent_adaptive_*.py", file=sys.stderr)
+              os._exit(4)
+
           args = [
               sys.executable,
               "-m",
               "pytest",
               "-p",
               "pytest_asyncio.plugin",
-              "tests/test_intent_adaptive_*",
+              *intent_tests,
               "tests/test_i18n_locale_key_parity.py",
               "-q",
               "--tb=short",
