@@ -16,20 +16,26 @@ on:
     - cron: "0 2 * * *"
 
 jobs:
-  compliance-and-test:
+  # Hard workaround for flaky "Post Run actions/checkout/setup-python" hangs:
+  # - Avoid those actions entirely (manual git checkout, use runner python).
+  # - Split into shorter jobs for faster feedback and easier reruns.
+  lint-and-gates:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          clean: false
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - run: pip install poetry
-      - run: poetry install
+      - name: Checkout (manual)
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://github.com/${{ github.repository }}.git"
+          git fetch --depth=1 origin "${{ github.sha }}"
+          git checkout --detach FETCH_HEAD
+      - name: Install Poetry
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install poetry
+      - name: Install deps
+        run: poetry install
       - name: Doc paths — output examples + architecture links
         run: |
           set -euo pipefail
@@ -61,8 +67,46 @@ jobs:
           name: user-visible-string-candidates
           path: reports/user_visible_string_candidates.tsv
           if-no-files-found: warn
+
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [lint-and-gates]
+    steps:
+      - name: Checkout (manual)
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://github.com/${{ github.repository }}.git"
+          git fetch --depth=1 origin "${{ github.sha }}"
+          git checkout --detach FETCH_HEAD
+      - name: Install Poetry
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install poetry
+      - name: Install deps
+        run: poetry install
       - name: Strict Type Checking
         run: poetry run pyright
+
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [lint-and-gates]
+    steps:
+      - name: Checkout (manual)
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://github.com/${{ github.repository }}.git"
+          git fetch --depth=1 origin "${{ github.sha }}"
+          git checkout --detach FETCH_HEAD
+      - name: Install Poetry
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install poetry
+      - name: Install deps
+        run: poetry install
       - name: Intent adaptive — offline test matrix (Step 9)
         run: |
           PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 poetry run pytest \
@@ -76,34 +120,42 @@ jobs:
   markitdown-bridge:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: [lint-and-gates]
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          clean: false
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - run: pip install poetry
-      - run: poetry install -E markitdown
+      - name: Checkout (manual)
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://github.com/${{ github.repository }}.git"
+          git fetch --depth=1 origin "${{ github.sha }}"
+          git checkout --detach FETCH_HEAD
+      - name: Install Poetry
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install poetry
+      - name: Install deps (markitdown extra)
+        run: poetry install -E markitdown
       - name: MarkItDown bridge — real docx + mocked-failure → fake unstructured
         run: poetry run pytest tests/test_markitdown_bridge.py -q --tb=short
 
   replay-traces:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: [lint-and-gates]
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          clean: false
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - run: pip install poetry
-      - run: poetry install
+      - name: Checkout (manual)
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://github.com/${{ github.repository }}.git"
+          git fetch --depth=1 origin "${{ github.sha }}"
+          git checkout --detach FETCH_HEAD
+      - name: Install Poetry
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install poetry
+      - name: Install deps
+        run: poetry install
       - name: Sim — golden NDJSON replay & step 2 acceptance
         run: |
           poetry run pytest tests/replay/ \
@@ -114,17 +166,21 @@ jobs:
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    needs: [lint-and-gates]
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          clean: false
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - run: pip install poetry
-      - run: poetry install
+      - name: Checkout (manual)
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://github.com/${{ github.repository }}.git"
+          git fetch --depth=1 origin "${{ github.sha }}"
+          git checkout --detach FETCH_HEAD
+      - name: Install Poetry
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install poetry
+      - name: Install deps
+        run: poetry install
       - name: Stress — replay + parallel validate (threshold 0 = any failure fails job)
         env:
           STRESS_FAILURE_THRESHOLD: "0"
