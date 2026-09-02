@@ -149,9 +149,6 @@ class InteractiveShell:
                     console.print(f"[dim]{ui_t('shell.prompt.back_to_menu')}[/dim]\n")
                     return
 
-                # IMPORTANT: don't block user input on the session lock.
-                # If a task is already running, publish immediately and let DecisionProcessor enqueue.
-                lock = self.kernel.session_locks.get(cli_chat_id)
                 trace_id = f"cmd_{self.cnt:03d}"
                 cli_event = AdamiEvent(
                     trace_id=trace_id,
@@ -160,18 +157,9 @@ class InteractiveShell:
                     priority=EventPriority.HIGH,
                     payload={"task": u_in, "chat_id": cli_chat_id},
                 )
-                if lock is not None and lock.locked():
-                    await self.kernel.bus.publish(cli_event)
-                    self.cnt += 1
-                    continue
-
-                async with self.kernel.session_locks[cli_chat_id]:
-                    self.kernel.active_sessions[cli_chat_id] = {
-                        "trace_id": trace_id,
-                        "started_at": time.time(),
-                    }
-                    await self.kernel.bus.publish(cli_event)
-                    self.cnt += 1
+                # Always publish immediately; DecisionProcessor owns session locking + queueing.
+                await self.kernel.bus.publish(cli_event)
+                self.cnt += 1
             except KeyboardInterrupt:
                 console.print(f"\n[dim]{ui_t('shell.prompt.hint_interrupt')}[/dim]\n")
             except EOFError:

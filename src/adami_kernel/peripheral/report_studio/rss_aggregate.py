@@ -14,6 +14,8 @@ from urllib.parse import urlparse
 import feedparser
 import httpx
 
+from adami_kernel.config import settings
+
 logger = logging.getLogger("AdamI-ReportStudio-RSS")
 
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
@@ -209,6 +211,11 @@ async def aggregate_whitelist_rss(
     """
     Returns (items as template dicts, sources metadata list).
     """
+    if int(top_n) <= 0:
+        return [], [{"backend": "rss_whitelist", "feeds": []}]
+    if bool(getattr(settings, "ADAMI_SIM_OFFLINE", False)):
+        feed_list = [{"name": f["name"], "url": f["url"]} for f in feeds if f.get("url")]
+        return [], [{"backend": "rss_whitelist", "feeds": [f["url"] for f in feed_list], "offline": True}]
     feed_list = [{"name": f["name"], "url": f["url"]} for f in feeds if f.get("url")]
     all_entries: List[RssEntry] = []
     limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)

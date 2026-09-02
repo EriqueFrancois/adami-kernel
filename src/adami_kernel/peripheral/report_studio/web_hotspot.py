@@ -6,6 +6,7 @@ import logging
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
+from adami_kernel.config import settings
 from adami_kernel.peripheral.report_studio.rss_aggregate import (
     _canonical_link,
     _title_similarity,
@@ -77,6 +78,10 @@ async def world_web_hotspot_provider(
     blacklist: List[str],
     top_n: int,
 ) -> List[Dict[str, Any]]:
+    if int(top_n) <= 0:
+        return []
+    if bool(getattr(settings, "ADAMI_SIM_OFFLINE", False)):
+        return []
     if search_fn is None or not queries:
         return []
     merged: List[Dict[str, str]] = []

@@ -319,12 +319,31 @@ class TaskPlanner:
         chat_id: int = None,
         *,
         intent_adaptive_meta: Optional[Dict[str, Any]] = None,
-    ) -> str:
+    ) -> dict[str, Any]:
         """
         迭代式任务执行：重复执行、评估，直到任务完成或达到最大次数
         【v2.4 核心修复】：SkillRouter 兼容 + 错误结果安全切片
         """
         logger.info(_plnr_t("plnr.log.iter_start", snippet=task[:80]))
+
+        def _out(
+            text: Any,
+            *,
+            status: str = "success",
+            workflow_id: Optional[str] = None,
+        ) -> dict[str, Any]:
+            """Normalized Planner output schema (Milestone A lifecycle contract).
+
+            Always returns a dict: {text, trace_id, workflow_id, status}.
+            """
+            wid = str(workflow_id or "").strip()
+            return {
+                "text": str(text) if text is not None else "",
+                "trace_id": str(trace_id),
+                "workflow_id": wid,
+                "status": str(status or "success"),
+            }
+
         if intent_adaptive_meta:
             try:
                 dumped = json.dumps(intent_adaptive_meta, ensure_ascii=False, default=str)
@@ -357,11 +376,14 @@ class TaskPlanner:
                         logger.info(_plnr_t("plnr.log.unified_wf"))
                         result = await self._execute_composed_workflow_via_bus(workflow_state)
                         if isinstance(result, dict):
-                            formatted = self._format_result(result)
                             await self._report_degradation_stats()
-                            return formatted
+                            return _out(
+                                self._format_result(result),
+                                status=str(result.get("status") or "success"),
+                                workflow_id=workflow_state.workflow_id,
+                            )
                         await self._report_degradation_stats()
-                        return str(result)
+                        return _out(str(result), status="success", workflow_id=workflow_state.workflow_id)
                     logger.warning(_plnr_t("plnr.warn.unified_no_wfstate"))
                 except Exception as e:
                     logger.warning(
@@ -370,7 +392,7 @@ class TaskPlanner:
                     )
 
             if not self.multi_agent_orchestrator:
-                return t("planner.skill_create.path_unavailable")
+                return _out(t("planner.skill_create.path_unavailable"), status="error")
             logger.info(_plnr_t("plnr.log.unified_mag"))
             try:
                 future = await self.multi_agent_orchestrator.start_multi_agent_workflow(
@@ -382,14 +404,18 @@ class TaskPlanner:
                 if isinstance(result, dict):
                     formatted = self._format_result(result)
                     await self._report_degradation_stats()
-                    return formatted
+                    return _out(
+                        formatted,
+                        status=str(result.get("status") or "success"),
+                        workflow_id=str(result.get("workflow_id") or ""),
+                    )
                 await self._report_degradation_stats()
-                return str(result)
+                return _out(str(result), status="success")
             except Exception as e:
                 error_detail = str(e)
                 friendly_msg = t("planner.skill_create.failed_with_detail", detail=error_detail)
                 logger.error(_plnr_t("plnr.err.unified_mag", detail=error_detail))
-                return friendly_msg
+                return _out(friendly_msg, status="error")
         # =================================================================================
 
         MAX_ITERATIONS = getattr(settings, "ADAMI_COMPLEX_TASK_MAX_RETRIES", 5)
@@ -456,9 +482,12 @@ class TaskPlanner:
 
         if final_result:
             formatted = self._format_result(final_result)
-            return formatted
+            status_val = "success"
+            if isinstance(final_result, dict):
+                status_val = str(final_result.get("status") or "success")
+            return _out(formatted, status=status_val)
         else:
-            return t("planner.task.incomplete")
+            return _out(t("planner.task.incomplete"), status="incomplete")
 
     def _extract_result_from_context(self, context: Dict) -> str:
         """
@@ -833,8 +862,11 @@ class TaskPlanner:
                     workflow_state.context.update(context)
                     result = await self._execute_composed_workflow_via_bus(workflow_state)
                     if isinstance(result, dict):
-                        return json.dumps(result, ensure_ascii=False, indent=2)
-                    return str(result)
+                        body = json.dumps(result, ensure_ascii=False, indent=2)
+                    else:
+                        body = str(result)
+                    # Lifecycle evidence: ensure at least one user-visible message contains workflow_id + trace_id.
+                    return f"{body}\n\n{t('planner.workflow_engine.evidence_footer', workflow_id=workflow_state.workflow_id, trace_id=trace_id)}"
             except Exception as e:
                 error_detail = str(e)
                 if hasattr(e, "args") and e.args:
@@ -867,12 +899,13 @@ class TaskPlanner:
                 workflow_id = await self.workflow_engine.start_workflow(
                     chat_id=chat_id, task_description=task
                 )
-                return t("planner.workflow_engine.started", workflow_id=workflow_id)
+                msg = t("planner.workflow_engine.started", workflow_id=workflow_id)
+                return _out(msg, status="success", workflow_id=workflow_id)
             except Exception as e:
                 error_detail = str(e)
                 friendly_msg = t("planner.workflow_engine.start_failed", detail=error_detail)
                 logger.warning(_plnr_t("plnr.warn.wf_start_fail", detail=error_detail))
-                return friendly_msg
+                return _out(friendly_msg, status="error")
 
         if self.episodic_memory:
             recall = await self.episodic_memory.recall_errors(task, "plan_and_execute")

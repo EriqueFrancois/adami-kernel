@@ -1,0 +1,27 @@
+{
+  "allowlist": [
+    "report_daily",
+    "intake",
+    "tool_timeout",
+    "workflow_engine",
+    "llm_call",
+    "web_search",
+    "mcp_external",
+    "queue_status",
+    "queue_timeout_flow",
+    "queue_failed_flow",
+    "queue_budget_exceeded_flow",
+    "queue_discard",
+    "queue_cancel_noop",
+    "queue_cancel_active_flow",
+    "reply_dedupe_filler",
+    "toolchoice",
+    "planner_multistep",
+    "planner_multistep_mcp",
+    "telemetry_empty_task"
+  ],
+  "denylist": [
+    "minimal"
+  ]
+}
+

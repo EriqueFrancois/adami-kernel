@@ -106,6 +106,8 @@ class WorkflowEngine:
 
         # 订阅工作流事件
         self._subscription_task = None
+        self._workflow_events_q: Optional[asyncio.Queue] = None
+        self._run_tasks: set[asyncio.Task] = set()
         logger.info(_wfe_t("wfe.log.ready"))
 
     def set_evolution_engine(self, evolution_engine: Any) -> None:
@@ -237,12 +239,17 @@ class WorkflowEngine:
 
     async def initialize(self):
         """启动工作流引擎，订阅 EventBus"""
-        self._subscription_task = asyncio.create_task(self._listen_workflow_events())
+        # Subscribe synchronously to avoid dropping system events published before the listener
+        # gets a chance to call `bus.subscribe`.
+        if self._workflow_events_q is None:
+            self._workflow_events_q = await self.bus.subscribe("workflow.events")
+        if self._subscription_task is None or self._subscription_task.done():
+            self._subscription_task = asyncio.create_task(self._listen_workflow_events())
         logger.debug(_wfe_t("wfe.debug.subscribed"))
 
     async def _listen_workflow_events(self):
         """监听工作流事件，推动状态机前进"""
-        q = await self.bus.subscribe("workflow.events")
+        q = self._workflow_events_q or (await self.bus.subscribe("workflow.events"))
         while True:
             try:
                 event: AdamiEvent = await asyncio.wait_for(
@@ -272,6 +279,9 @@ class WorkflowEngine:
 
         state = await self.memory.get_workflow_state(workflow_id, chat_id)
         if not state:
+            # Fallback: for hot workflows (or transient persistence errors), consult in-memory cache.
+            state = self.active_workflows.get(str(workflow_id))
+        if not state:
             logger.warning(_wfe_t("wfe.warn.state_missing", wid=workflow_id))
             return
 
@@ -291,7 +301,9 @@ class WorkflowEngine:
                 state.current_node_id = self._find_entry_node(state)
             self.active_workflows[state.workflow_id] = state
             await self.memory.save_workflow_state(state)
-            asyncio.create_task(self._execute_node(state))
+            t = asyncio.create_task(self._execute_node(state))
+            self._run_tasks.add(t)
+            t.add_done_callback(lambda _t: self._run_tasks.discard(_t))
 
     # ====================== 核心工作流方法 ======================
     async def start_workflow(self, chat_id: str, task_description: str) -> str:

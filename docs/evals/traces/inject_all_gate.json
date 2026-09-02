@@ -1,0 +1,19 @@
+{
+  "allowlist": [
+    "report_daily",
+    "planner_multistep",
+    "planner_multistep_mcp",
+    "toolchoice",
+    "telemetry_empty_task"
+  ],
+  "denylist": [
+    "minimal",
+    "intake",
+    "tool_timeout",
+    "workflow_engine",
+    "llm_call",
+    "web_search",
+    "mcp_external"
+  ]
+}
+

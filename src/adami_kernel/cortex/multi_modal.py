@@ -21,23 +21,30 @@ def _mm_t(key: str, **kwargs: Any) -> str:
     return t(key, locale=settings.effective_ui_default_locale(), **kwargs)
 
 
-# === 彻底静音所有 HF Warning ===
+# === 彻底静音所有 HF Warning（transformers 为可选依赖）===
 warnings.filterwarnings("ignore")
-from transformers import logging as hf_logging
-
-hf_logging.set_verbosity_error()
 
 logger = logging.getLogger("AdamI-MultiModal")
 parse_logger = logging.getLogger("AdamI-DocumentParse")
 
+TORCH_AVAILABLE = False
 try:
     import torch
 
     TORCH_AVAILABLE = True
 except ImportError:
-    TORCH_AVAILABLE = False
     # Optional dependency: vision path is disabled without torch; avoid WARNING spam in default installs.
     logger.debug(boot_t("boot.log.multimodal_torch_missing"))
+
+TRANSFORMERS_AVAILABLE = False
+if TORCH_AVAILABLE:
+    try:
+        from transformers import logging as hf_logging
+
+        hf_logging.set_verbosity_error()
+        TRANSFORMERS_AVAILABLE = True
+    except ImportError:
+        logger.debug(boot_t("boot.log.multimodal_transformers_missing"))
 
 
 class MultiModalInput:
@@ -92,6 +99,8 @@ class MultiModalInput:
 
     def _load_blip_sync(self):
         """同步加载模型（已放入后台线程）"""
+        if not TRANSFORMERS_AVAILABLE or not TORCH_AVAILABLE:
+            raise RuntimeError("transformers/torch not available for BLIP")
         from transformers import BlipForConditionalGeneration, BlipProcessor
 
         self.blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")

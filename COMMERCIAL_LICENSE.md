@@ -13,7 +13,7 @@ If you do not accept these commercial terms, you may use AdamI only under AGPL.
 
 ## 1) Parties
 
-- **Licensor**: Erik Hwang (individual) ("Licensor")  
+- **Licensor**: MR. Jing Huang (individual) ("Licensor")  
   Contact: `erik.hwang@hotmail.com`
 - **Licensee**: the individual or legal entity accepting this license ("Licensee")
 
@@ -96,7 +96,58 @@ Commercial licensing is purchased directly from the Licensor:
 
 - Contact: `erik.hwang@hotmail.com`
 
-Fees, invoicing, scope (single entity vs group), and support terms are agreed in writing.
+### 7.1 Pricing models (agreed in writing)
+
+Pricing is agreed in writing and may be based on one or more of the following models:
+
+- **Per-instance**: priced per deployed production instance / cluster.
+- **Per-seat**: priced per human operator / developer seat with access to the system.
+- **Usage-based**: priced by metered usage (e.g. events processed, LLM calls routed, stored artifacts).
+- **Enterprise site license**: priced for a named legal entity (and optionally its Affiliates).
+
+### 7.2 Payment, invoicing, and taxes
+
+Unless otherwise agreed in writing:
+
+- **Payment method**: bank transfer / invoice (or another method agreed in writing).
+- **Payment terms**: net terms as stated on the invoice.
+- **Taxes**: Licensee is responsible for applicable taxes, duties, or withholdings unless prohibited by law.
+
+### 7.3 Ordering and delivery (commercial grant)
+
+To purchase:
+
+1. Email `erik.hwang@hotmail.com` with:
+   - Licensee legal entity name + jurisdiction
+   - Intended use (internal / distribution / hosted service)
+   - Desired pricing model (per-instance / per-seat / usage-based / site)
+   - Desired support tier (if any)
+2. The Licensor will respond with a written quote and payment instructions.
+3. Upon payment confirmation (or signed agreement, if required), the Licensor will provide written
+   acceptance of the commercial license grant.
+
+### 7.4 Commercial deliverables (typical)
+
+Deliverables are agreed in writing and may include:
+
+- A **commercial license grant letter / PDF** identifying Licensee, scope, term, and allowed use.
+- An **invoice / receipt** (as applicable).
+- A **support/SLA addendum** (if purchased), describing channels, response targets, and escalation.
+
+### 7.5 Support scope (optional; if purchased)
+
+Support terms are agreed in writing. Typical scopes include:
+
+- **Installation & upgrade guidance** (Poetry / pip, optional extras, deployment notes).
+- **Configuration support** (first-run init, env settings, observability toggles).
+- **Upgrade migration assistance** for operator-visible changes (e.g. DLQ/RBAC behavior, new CI gates).
+- **Bug triage** (repro guidance, patch ETA targets per tier).
+- **Security coordination** (private disclosure handling and patch timelines).
+
+Unless agreed in writing, support does **not** include:
+
+- Building custom features, integrations, or on-site work.
+- Operating Licensee’s infrastructure, IAM, or third-party vendors.
 
 ---
 

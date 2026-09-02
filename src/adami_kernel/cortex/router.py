@@ -16,6 +16,7 @@ AdamI HybridLLMRouter（工业级最终版）
 import asyncio
 import gc
 import logging
+import os
 import platform
 import re
 import threading
@@ -62,13 +63,9 @@ def _router_reward(trace: object, reward: float, metadata: dict[str, Any]) -> No
         agl.emit_reward(trace_id=tid, reward=reward, metadata=metadata)
 
 
-# 尝试导入 MLX（仅 macOS 可用）
-try:
-    from mlx_lm import generate
-
-    MLX_AVAILABLE = platform.system() == "Darwin"
-except ImportError:
-    MLX_AVAILABLE = False
+# MLX is optional and may crash in constrained/sandboxed environments.
+# Keep imports lazy inside `HybridLLMRouter.__init__`.
+MLX_AVAILABLE = False
 
 
 class ResourceExhausted(Exception):
@@ -102,7 +99,24 @@ class HybridLLMRouter:
         self.current_action_idx = 0
 
         # ====================== 本地 MLX 配置（macOS 优先） ======================
-        self.mlx_enabled = getattr(settings, "ADAMI_MLX_ENABLED", True) and MLX_AVAILABLE
+        global MLX_AVAILABLE
+        self._mlx_generate = None
+        _mlx_flag = bool(getattr(settings, "ADAMI_MLX_ENABLED", False))
+        # Allow env override without touching settings files.
+        if str(os.environ.get("ADAMI_MLX_ENABLED", "")).strip() in {"0", "false", "False"}:
+            _mlx_flag = False
+        if platform.system() == "Darwin" and _mlx_flag:
+            try:
+                from mlx_lm import generate as _mlx_generate  # type: ignore[import-untyped]
+
+                self._mlx_generate = _mlx_generate
+                MLX_AVAILABLE = True
+            except Exception as e:
+                MLX_AVAILABLE = False
+                self._mlx_generate = None
+                logger.debug("MLX disabled/unavailable: %s", e)
+
+        self.mlx_enabled = _mlx_flag and MLX_AVAILABLE
         self.mlx_model_path = getattr(
             settings, "ADAMI_MLX_MODEL_PATH", "mlx-community/Qwen3.5-9B-MLX-4bit"
         )
@@ -133,6 +147,8 @@ class HybridLLMRouter:
         self.think_failure_count: Dict[str, int] = {p["name"]: 0 for p in self.think_providers}
         self.action_failure_count: Dict[str, int] = {p["name"]: 0 for p in self.action_providers}
         self.last_call_time = 0.0
+        # Optional EventBus publisher: publish(AdamiEvent) -> bool
+        self._event_publisher = None
 
     def _init_client(self):
         if hasattr(self, "client") and not self.client.is_closed:
@@ -150,6 +166,35 @@ class HybridLLMRouter:
                 timeout=settings.ADAMI_ROUTER_HTTP_TIMEOUT_SEC,
             )
         )
+
+    def set_event_publisher(self, publish) -> None:
+        self._event_publisher = publish
+
+    async def _emit_llm_event(
+        self,
+        *,
+        trace_id: str | None,
+        source_module: str,
+        payload: dict[str, Any],
+    ) -> None:
+        if getattr(self, "_event_publisher", None) is None:
+            return
+        try:
+            from adami_kernel.nexus.event import AdamiEvent, EventPriority
+            from adami_kernel.observability.tool_call_context import get_tool_trace_id
+
+            tid = (trace_id or get_tool_trace_id() or "").strip() or "llm.unknown"
+            await self._event_publisher(
+                AdamiEvent(
+                    trace_id=tid,
+                    source_module=source_module,
+                    target_topic="system.events",
+                    priority=EventPriority.NORMAL,
+                    payload=dict(payload),
+                )
+            )
+        except Exception:
+            return
 
     def unload_mlx_model(self):
         """高负载场景主动释放 MLX 模型内存"""
@@ -212,7 +257,10 @@ class HybridLLMRouter:
             with self.mlx_lock:
                 for temp_key in ["temperature", "temp"]:
                     try:
-                        response = generate(
+                        gen = self._mlx_generate
+                        if gen is None:
+                            raise Exception("MLX generate not available")
+                        response = gen(
                             self.mlx_model,
                             self.mlx_tokenizer,
                             prompt=prompt,
@@ -223,7 +271,10 @@ class HybridLLMRouter:
                         return response.strip()
                     except TypeError:
                         continue
-                response = generate(
+                gen = self._mlx_generate
+                if gen is None:
+                    raise Exception("MLX generate not available")
+                response = gen(
                     self.mlx_model,
                     self.mlx_tokenizer,
                     prompt=prompt,
@@ -286,6 +337,44 @@ class HybridLLMRouter:
         """
         sink = get_experience_sink()
         t0 = time.perf_counter()
+        from adami_kernel.observability.timeout_budget import clamp_timeout_to_budget
+
+        timeout_sec = clamp_timeout_to_budget(kwargs.get("timeout_sec", None))
+        kwargs["timeout_sec"] = timeout_sec
+        await self._emit_llm_event(
+            trace_id=None,
+            source_module="cortex.router",
+            payload={
+                "event_type": "TOOL_CALL_START",
+                "tool": f"llm.{str(brain_type)}",
+                "timeout_sec": float(timeout_sec) if timeout_sec is not None else None,
+            },
+        )
+
+        # Deterministic offline path for sim/replay.
+        if bool(getattr(settings, "ADAMI_SIM_OFFLINE", False)) and bool(
+            getattr(settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", False)
+        ):
+            # Keep offline outputs deterministic but allow scenario-specific branching decisions.
+            p = (prompt or "").lower()
+            if "choose_branch" in p or "branch_decision" in p:
+                if "execute_command" in p or "exec" in p:
+                    text = f"[offline llm:{brain_type}] branch=execute_command"
+                else:
+                    text = f"[offline llm:{brain_type}] branch=mcp_flaky"
+            else:
+                text = f"[offline llm:{brain_type}] ok"
+            await self._emit_llm_event(
+                trace_id=None,
+                source_module="cortex.router",
+                payload={
+                    "event_type": "TOOL_CALL_DONE",
+                    "tool": f"llm.{str(brain_type)}",
+                    "result": {"text": text},
+                    "latency_ms": int((time.perf_counter() - t0) * 1000),
+                },
+            )
+            return text
 
         with get_trace_context(
             trace_id=f"llm_call_{brain_type}_{int(time.time())}",
@@ -366,6 +455,16 @@ class HybridLLMRouter:
                                 1.0,
                                 {"provider": name, "brain_type": brain_type},
                             )
+                            await self._emit_llm_event(
+                                trace_id=None,
+                                source_module="cortex.router",
+                                payload={
+                                    "event_type": "TOOL_CALL_DONE",
+                                    "tool": f"llm.{str(brain_type)}",
+                                    "result": {"text": response_text, "provider": name},
+                                    "latency_ms": int((time.perf_counter() - t0) * 1000),
+                                },
+                            )
                             return response_text
 
                         except Exception as e:
@@ -400,6 +499,16 @@ class HybridLLMRouter:
                         extra={"routing": "local_fallback"},
                     )
                     _router_reward(trace, 0.5, {"fallback": "local"})
+                    await self._emit_llm_event(
+                        trace_id=None,
+                        source_module="cortex.router",
+                        payload={
+                            "event_type": "TOOL_CALL_DONE",
+                            "tool": f"llm.{str(brain_type)}",
+                            "result": {"text": result, "provider": "local"},
+                            "latency_ms": int((time.perf_counter() - t0) * 1000),
+                        },
+                    )
                     return result
                 except Exception as local_final_e:
                     logger.error(_hyrt_t("hyrt.log.local_fail", err=local_final_e))
@@ -418,9 +527,29 @@ class HybridLLMRouter:
                         extra={"routing": "local_failed"},
                     )
                     _router_reward(trace, 0.0, {"fallback": "error"})
+                    await self._emit_llm_event(
+                        trace_id=None,
+                        source_module="cortex.router",
+                        payload={
+                            "event_type": "TOOL_CALL_ERROR",
+                            "tool": f"llm.{str(brain_type)}",
+                            "error": type(local_final_e).__name__,
+                            "latency_ms": int((time.perf_counter() - t0) * 1000),
+                        },
+                    )
                     raise RuntimeError(_hyrt_t("hyrt.err.all_down")) from local_final_e
             except Exception:
                 outcome = "failed"
+                await self._emit_llm_event(
+                    trace_id=None,
+                    source_module="cortex.router",
+                    payload={
+                        "event_type": "TOOL_CALL_ERROR",
+                        "tool": f"llm.{str(brain_type)}",
+                        "error": "router_call_failed",
+                        "latency_ms": int((time.perf_counter() - t0) * 1000),
+                    },
+                )
                 raise
             finally:
                 if not nested_scope:

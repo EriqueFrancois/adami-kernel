@@ -48,6 +48,18 @@ class EventBus:
         self.add_middleware(sink.middleware)
         logger.debug(_nbus_msg("nbus.debug.sim_mw"))
 
+        # Optional: clear DLQ once on boot to prevent RBAC/DLQ spam loops
+        # (e.g. legacy events with disallowed `source_module`).
+        if bool(getattr(settings, "ADAMI_DLQ_CLEAR_ON_BOOT", False)):
+            dlq = getattr(self, "dlq_db", None)
+            if dlq is not None and hasattr(dlq, "clear"):
+                try:
+                    await dlq.clear()
+                    logger.warning(_nbus_msg("nbus.warn.dlq_cleared_on_boot"))
+                except Exception:
+                    # Best-effort only: never block boot.
+                    pass
+
     # ====================== V4.7 系统事件白名单（本次 2.0 强化） ======================
     def _is_system_event(self, event: Any) -> bool:
         """内部系统事件跳过 RBAC 检查和 DLQ（白名单模式）"""
@@ -172,8 +184,8 @@ class EventBus:
                 logger.warning(
                     _nbus_msg("nbus.warn.rbac_deny", src=source_module, topic=target_topic)
                 )
-                if self.dlq_db:
-                    await self.dlq_db.push(self._dump_event(event))
+                # RBAC DENY is not a transient failure: replaying via DLQ will only spam logs.
+                # Drop the event without enqueuing to DLQ.
                 return False
 
         # middleware

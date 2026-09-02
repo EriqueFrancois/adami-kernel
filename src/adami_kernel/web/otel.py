@@ -83,6 +83,16 @@ def _register_batch_processor(exporter: SpanExporter) -> None:
     )
 
 
+class NullSpanExporter(SpanExporter):
+    """Drop spans (used to keep CLI output clean)."""
+
+    def export(self, spans):  # type: ignore[override]
+        return None
+
+    def shutdown(self):  # type: ignore[override]
+        return None
+
+
 def _log_export_policy() -> None:
     try:
         prov = trace.get_tracer_provider()
@@ -134,9 +144,8 @@ class AdamIOtel:
             return
         try:
             if not settings.ADAMI_ENABLE_OBSERVABILITY:
-                logger.info(boot_t("boot.log.otel_console_exporter"))
                 trace.set_tracer_provider(TracerProvider(sampler=_trace_sampler_from_settings()))
-                _register_batch_processor(ConsoleSpanExporter())
+                _register_batch_processor(NullSpanExporter())
                 cls._tracer = trace.get_tracer("adami-kernel")
                 _log_export_policy()
                 _apply_http_auto_instrumentation()
@@ -147,9 +156,12 @@ class AdamIOtel:
                 (getattr(settings, "ADAMI_OTEL_EXPORTER", "console") or "console").strip().lower()
             )
             if exporter_mode != "otlp":
-                logger.info(boot_t("boot.log.otel_console_default"))
                 trace.set_tracer_provider(TracerProvider(sampler=_trace_sampler_from_settings()))
-                _register_batch_processor(ConsoleSpanExporter())
+                if bool(getattr(settings, "ADAMI_OTEL_CONSOLE_EXPORT_ENABLED", False)):
+                    logger.info(boot_t("boot.log.otel_console_default"))
+                    _register_batch_processor(ConsoleSpanExporter())
+                else:
+                    _register_batch_processor(NullSpanExporter())
                 cls._tracer = trace.get_tracer("adami-kernel")
                 _log_export_policy()
                 _apply_http_auto_instrumentation()
@@ -187,7 +199,10 @@ class AdamIOtel:
         except Exception as e:
             logger.warning(_wbotel_t("wbotel.warn.grpc_fallback", e=e))
             trace.set_tracer_provider(TracerProvider(sampler=_trace_sampler_from_settings()))
-            _register_batch_processor(ConsoleSpanExporter())
+            if bool(getattr(settings, "ADAMI_OTEL_CONSOLE_EXPORT_ENABLED", False)):
+                _register_batch_processor(ConsoleSpanExporter())
+            else:
+                _register_batch_processor(NullSpanExporter())
             cls._tracer = trace.get_tracer("adami-kernel")
             _log_export_policy()
             _apply_http_auto_instrumentation()

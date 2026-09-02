@@ -11,7 +11,7 @@ Please **do not** open a public GitHub issue for security-sensitive reports.
 
 Instead, report privately via one of the following channels:
 
-- **Email**: (TODO) security contact email
+- **Email**: `erik.hwang@hotmail.com`
 - **Private advisory**: GitHub Security Advisories (recommended, if enabled for the repo)
 
 When reporting, include:

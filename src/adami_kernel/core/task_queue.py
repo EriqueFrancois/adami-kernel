@@ -21,6 +21,10 @@ class QueuedTask:
     source_module: str
     platform: str
     created_at: float
+    # Original user prompt trace_id (preserves DecisionProcessor reply idempotency across queue dispatch).
+    trace_id: str = ""
+    # Optional marker for tasks recovered from a previous in-progress run.
+    recovered_from: str = ""
 
 
 @dataclass(frozen=True)
@@ -68,6 +72,7 @@ class TaskQueueStore:
         path: Path,
         *,
         ttl_sec: float = 0.0,
+        in_progress_ttl_sec: float = 0.0,
         max_per_chat: int = 0,
         max_total: int = 0,
         overflow_mode: Literal["drop_oldest", "reject"] = "drop_oldest",
@@ -76,6 +81,7 @@ class TaskQueueStore:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._ttl_sec = max(0.0, float(ttl_sec or 0.0))
+        self._in_progress_ttl_sec = max(0.0, float(in_progress_ttl_sec or 0.0))
         self._max_per_chat = max(0, int(max_per_chat or 0))
         self._max_total = max(0, int(max_total or 0))
         om = str(overflow_mode or "drop_oldest").strip().lower()
@@ -92,27 +98,53 @@ class TaskQueueStore:
         return cls(
             s.path_task_queue_json,
             ttl_sec=float(getattr(s, "ADAMI_TASK_QUEUE_TTL_SEC", 0.0) or 0.0),
+            in_progress_ttl_sec=float(
+                getattr(s, "ADAMI_TASK_QUEUE_IN_PROGRESS_TTL_SEC", 0.0) or 0.0
+            ),
             max_per_chat=int(getattr(s, "ADAMI_TASK_QUEUE_MAX_PER_CHAT", 0) or 0),
             max_total=int(getattr(s, "ADAMI_TASK_QUEUE_MAX_TOTAL", 0) or 0),
             overflow_mode=getattr(s, "ADAMI_TASK_QUEUE_OVERFLOW_MODE", "drop_oldest"),
             fernet_key=getattr(s, "ADAMI_TASK_QUEUE_FERNET_KEY", None),
         )
 
-    def _purge_stale(self) -> None:
-        if self._ttl_sec <= 0:
-            return
+    def _purge_stale(self) -> Tuple[int, int]:
         now = time.time()
-        cutoff = now - self._ttl_sec
         removed = 0
-        for cid, items in list(self._queues.items()):
-            kept = [x for x in items if x.created_at >= cutoff]
-            removed += len(items) - len(kept)
-            if kept:
-                self._queues[cid] = kept
-            else:
-                self._queues.pop(cid, None)
-        if removed:
-            logger.info("Task queue TTL dropped %s pending item(s).", removed)
+        removed_ip = 0
+        if self._ttl_sec > 0:
+            cutoff = now - self._ttl_sec
+            for cid, items in list(self._queues.items()):
+                kept = [x for x in items if x.created_at >= cutoff]
+                removed += len(items) - len(kept)
+                if kept:
+                    self._queues[cid] = kept
+                else:
+                    self._queues.pop(cid, None)
+            if removed:
+                logger.info("Task queue TTL dropped %s pending item(s).", removed)
+
+        if self._in_progress_ttl_sec > 0:
+            ip_cutoff = now - self._in_progress_ttl_sec
+            for cid, it in list(self._in_progress.items()):
+                try:
+                    if float(it.started_at) < ip_cutoff:
+                        self._in_progress.pop(cid, None)
+                        removed_ip += 1
+                except Exception:
+                    continue
+            if removed_ip:
+                logger.warning(
+                    "Task queue TTL dropped %s in-progress item(s) (stale start time).",
+                    removed_ip,
+                )
+        return removed, removed_ip
+
+    def persist_after_purge(self) -> Tuple[int, int]:
+        """Drop TTL-expired rows and write the file when anything changed."""
+        removed, removed_ip = self._purge_stale()
+        if removed or removed_ip:
+            self._save()
+        return removed, removed_ip
 
     def _total_pending(self) -> int:
         return sum(len(v) for v in self._queues.values())
@@ -184,6 +216,8 @@ class TaskQueueStore:
                                 source_module=str(row.get("source_module") or "user.prompt"),
                                 platform=str(row.get("platform") or "cli"),
                                 created_at=float(row.get("created_at") or 0.0),
+                                trace_id=str(row.get("trace_id") or ""),
+                                recovered_from=str(row.get("recovered_from") or ""),
                             )
                         )
                     except Exception:
@@ -271,7 +305,13 @@ class TaskQueueStore:
             logger.warning("Task queue save failed (non-fatal): %s", e)
 
     def enqueue(
-        self, *, chat_id: str, task: str, source_module: str, platform: str
+        self,
+        *,
+        chat_id: str,
+        task: str,
+        source_module: str,
+        platform: str,
+        trace_id: str = "",
     ) -> Optional[QueuedTask]:
         cid = str(chat_id)
         text = str(task or "").strip()
@@ -287,6 +327,7 @@ class TaskQueueStore:
             source_module=str(source_module or "user.prompt"),
             platform=str(platform or "cli"),
             created_at=now,
+            trace_id=str(trace_id or ""),
         )
         q = self._queues.setdefault(cid, [])
         if self._overflow_mode == "reject":
@@ -384,13 +425,19 @@ class TaskQueueStore:
         ip = self._in_progress.get(cid)
         if ip is None or not ip.task.strip():
             return None
+        try:
+            age_anchor = float(ip.started_at)
+        except (TypeError, ValueError):
+            age_anchor = time.time()
         item = QueuedTask(
             id=f"re_{ip.id}",
             task=ip.task,
             chat_id=cid,
             source_module=ip.source_module,
             platform=ip.platform,
-            created_at=time.time(),
+            created_at=age_anchor,
+            trace_id=str(getattr(ip, "trace_id", "") or ""),
+            recovered_from=f"in_progress:{str(getattr(ip, 'id', '') or '').strip() or 'unknown'}",
         )
         self._queues.setdefault(cid, []).insert(0, item)
         self._in_progress.pop(cid, None)

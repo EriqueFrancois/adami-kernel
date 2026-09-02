@@ -42,17 +42,16 @@ for name in list(logging.root.manager.loggerDict):
     for h in logger_obj.handlers[:]:
         if isinstance(h, logging.StreamHandler):
             logger_obj.removeHandler(h)
-# ====================== Phase 4 OpenTelemetry 强制初始化 ======================
+# ====================== Phase 4 OpenTelemetry initialization ======================
 import os
 
 from adami_kernel.core.boot_manager import BootManager
 from adami_kernel.core.component_initializer import ComponentInitializer
 from adami_kernel.core.lifecycle_manager import LifecycleManager
 
-os.environ["OTEL_SERVICE_NAME"] = "adami-kernel"
-os.environ["OTEL_TRACES_EXPORTER"] = "console"
-os.environ["OTEL_METRICS_EXPORTER"] = "console"
-os.environ["OTEL_LOGS_EXPORTER"] = "console"
+# Do not force OTEL console exporters here: ConsoleSpanExporter prints spans to stdout,
+# which breaks the interactive CLI experience. Export is controlled by settings (see web/otel.py).
+os.environ.setdefault("OTEL_SERVICE_NAME", "adami-kernel")
 
 from adami_kernel.web.otel import AdamIOtel
 

@@ -2713,6 +2713,18 @@ files = [
 ]
 
 [[package]]
+name = "json-repair"
+version = "0.55.2"
+description = "A package to repair broken json strings"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "json_repair-0.55.2-py3-none-any.whl", hash = "sha256:08109b093fc9fe99b956b8309f9c1dfd2740637056d93df489cc7b4eb56d4286"},
+    {file = "json_repair-0.55.2.tar.gz", hash = "sha256:aa5c89692126257efb8e3cf1efe6787387634b5c360fb77313d66f146e980de6"},
+]
+
+[[package]]
 name = "jsonref"
 version = "1.1.0"
 description = "jsonref is a library for automatic dereferencing of JSON Reference objects for Python."
@@ -8795,4 +8807,4 @@ training = ["agentlightning"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "5a368e930ea49e602594ca13463e20069582897e2a92e1680bcb6175f8976c61"
+content-hash = "f0d9f4b97432a71aad00f4d3847ea4ae52eaf972aec292ae50f5904ae51f4099"

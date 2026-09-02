@@ -128,6 +128,10 @@ async def github_ai_repo_items_for_report(
     Snapshots are written **after** delta reads so this run's inserts do not
     satisfy ``stars_at_or_before(period_start)`` for the same window.
     """
+    if int(top_n) <= 0:
+        return [], None, None
+    if bool(getattr(settings, "ADAMI_SIM_OFFLINE", False)):
+        return [], None, {"kind": "offline", "message": "ADAMI_SIM_OFFLINE enabled"}
     repos, err = await github_search_top_repositories(query=search_query, per_page=per_page)
     if not repos:
         return [], None, err

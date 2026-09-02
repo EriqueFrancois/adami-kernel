@@ -1,0 +1,9 @@
+{
+  "name": "telemetry_empty_task",
+  "dimensions": {
+    "correctness": { "min": 1.0 },
+    "operability": { "min": 1.0 },
+    "ux_noise": { "min": 1.0 }
+  }
+}
+

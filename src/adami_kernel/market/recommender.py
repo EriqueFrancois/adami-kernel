@@ -3,6 +3,7 @@ import re
 from typing import Dict, List, Optional
 
 from adami_kernel.config import settings
+from adami_kernel.cortex.endocrine import status_or_normal
 from adami_kernel.cortex.evolution import EvolutionEngine
 from adami_kernel.cortex.meta_cortex import MetaCortex
 from adami_kernel.i18n import t as i18n_t
@@ -30,10 +31,12 @@ class SkillRecommender:
         meta_cortex: MetaCortex,
         github_hunter: GitHubHunter,
         evolution_engine: EvolutionEngine,
+        endocrine=None,
     ):
         self.meta_cortex = meta_cortex
         self.github_hunter = github_hunter
         self.evolution = evolution_engine
+        self.endocrine = endocrine
         logger.info(_reco_t("reco.log.active"))
 
     async def get_recommendations(
@@ -45,7 +48,7 @@ class SkillRecommender:
         """
         # Step 1: MetaCortex 分析当前能力短板
         current_persona = await self._get_current_persona_summary()
-        endocrine_status = "normal"  # 可后续扩展为真实内分泌状态
+        endocrine_status = status_or_normal(self.endocrine)
 
         plan = await self.meta_cortex.evaluate_and_plan(
             current_persona=current_persona, endocrine_status=endocrine_status

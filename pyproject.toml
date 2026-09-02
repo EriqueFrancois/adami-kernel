@@ -1,7 +1,7 @@
 # pyproject.toml
 [tool.poetry]
 name = "adami-kernel"
-version = "0.1.0"
+version = "0.2.0"
 description = "Industrial microkernel for distributed digital ecosystems"
 authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"
@@ -13,6 +13,12 @@ adami = "adami_kernel.kernel:main"
 adami-train-agl = "adami_kernel.training.run_trainer:main"
 adami-mcp-agent-smoke = "adami_kernel.integration.mcp_agent.adapter_smoke:main"
 adami-replay-validate = "adami_kernel.integration.sim.replay_cli:main"
+adami-replay-eval = "adami_kernel.integration.sim.replay_eval_cli:main"
+adami-replay-run = "adami_kernel.integration.sim.replay_run_cli:main"
+adami-replay-compare = "adami_kernel.integration.sim.replay_compare_cli:main"
+adami-golden-trace-gen = "adami_kernel.integration.sim.golden_trace_gen:main"
+adami-golden-trace-capture = "adami_kernel.integration.sim.golden_trace_capture:main"
+adami-golden-trace-refresh = "adami_kernel.integration.sim.golden_trace_refresh_cli:main"
 adami-ops-boot-check = "adami_kernel.ops.ops_boot_self_check_cli:main"
 
 [tool.poetry.dependencies]
@@ -43,6 +49,7 @@ markitdown = { version = "~0.1.5", extras = ["pdf", "docx", "pptx", "xlsx"], opt
 # ====================== 【Anthropic Skills 集成 - 步骤1.1 新增】 ======================
 # python-frontmatter 用于解析 Anthropic SKILL.md 的 YAML frontmatter
 python-frontmatter = "^1.1.0"
+json-repair = "^0.55.0"
 # ====================================================================================
 
 # ====================== OpenTelemetry（内核默认可用） ======================

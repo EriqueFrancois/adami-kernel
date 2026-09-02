@@ -1,0 +1,46 @@
+[
+  {
+    "index": 0,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload_keys": ["task", "chat_id", "platform"]
+    }
+  },
+  {
+    "index": 1,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload_keys": ["event_type", "workflow_id", "chat_id"]
+    }
+  },
+  {
+    "index": 2,
+    "assertion": {
+      "expect_topic": "workflow.events",
+      "expect_payload": {
+        "event_type": "WORKFLOW_START"
+      },
+      "expect_payload_keys": ["workflow_id", "event_type", "chat_id"]
+    }
+  },
+  {
+    "index": 4,
+    "assertion": {
+      "expect_topic": "workflow.events",
+      "expect_payload": {
+        "event_type": "PHASE_TRANSITION"
+      },
+      "expect_payload_keys": ["workflow_id", "event_type", "chat_id", "to_phase"]
+    }
+  },
+  {
+    "index": -1,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload": {
+        "event_type": "REPLY"
+      }
+    }
+  }
+]
+

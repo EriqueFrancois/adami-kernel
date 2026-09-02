@@ -175,8 +175,8 @@ class TelegramSensory(BaseNerve):
         await self._sync_telegram_bot_commands()
         self.dp = Dispatcher()
 
-        # 启动完成后主动推送“已启动 + 入口菜单”
-        if self.default_chat_id:
+        # 默认不主动推送「已启动」：watchdog/systemd 重启会在无人说话时刷屏。
+        if self.default_chat_id and bool(getattr(settings, "ADAMI_MESSENGER_NOTIFY_BOOT", False)):
             try:
                 await self.bot.send_message(self.default_chat_id, ui_t("port.boot.system_ready"))
                 self._menu_bootstrapped.add(str(self.default_chat_id))
@@ -198,8 +198,10 @@ class TelegramSensory(BaseNerve):
 
         for attempt in range(3):
             try:
-                await self.dp.start_polling(self.bot)
+                drop_pending = bool(getattr(settings, "ADAMI_TELEGRAM_DROP_PENDING_UPDATES", True))
+                await self.dp.start_polling(self.bot, drop_pending_updates=drop_pending)
                 logger.info(boot_t("boot.log.telegram_polling_started"))
+                logger.debug(boot_t("boot.log.telegram_drop_pending_updates", flag=str(drop_pending)))
                 break
             except Exception as e:
                 # Telegram 明确冲突：通常意味着同一个 bot token 在别处也在 getUpdates
@@ -422,9 +424,6 @@ class TelegramSensory(BaseNerve):
                     return
                 await self.bot.answer_callback_query(
                     callback.id, text=ui_t("port.report.immediate_run_toast", rtype=sub)
-                )
-                await self.bot.send_message(
-                    int(chat_id), ui_t("port.report.immediate_queued", rtype=sub)
                 )
                 msg = callback.message
                 evt = self.create_event(

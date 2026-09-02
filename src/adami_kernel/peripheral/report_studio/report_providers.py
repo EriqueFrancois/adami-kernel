@@ -277,6 +277,13 @@ async def crypto_spot_prices_provider(
     """
     loc = normalize_locale(locale or settings.effective_ui_default_locale())
     tr = default_translator()
+    if bool(getattr(settings, "ADAMI_SIM_OFFLINE", False)):
+        return {
+            "items": [],
+            "sources": [],
+            "error": {"kind": "offline", "message": "ADAMI_SIM_OFFLINE enabled"},
+            "error_user": tr.t("report.studio.crypto_fetch_failed", locale=loc, detail="offline")[:160],
+        }
     ids = "bitcoin,ethereum,solana"
     url = "https://api.coingecko.com/api/v3/simple/price"
     params = {

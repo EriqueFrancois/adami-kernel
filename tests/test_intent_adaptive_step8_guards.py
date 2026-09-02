@@ -91,7 +91,7 @@ async def _session_lock_seq() -> None:
     kernel = SimpleNamespace(session_locks={}, active_sessions={})
     dp = DecisionProcessor(kernel)  # type: ignore[arg-type]
     for i in range(40):
-        await dp._acquire_session_lock("chat-s8", f"trace-{i}")
+        await dp._acquire_session_lock("chat-s8", f"trace-{i}", "cli")
         await dp._release_session_lock("chat-s8")
     assert not kernel.session_locks["chat-s8"].locked()
 
@@ -103,10 +103,10 @@ def test_session_lock_sequential_acquire_release_many_times() -> None:
 async def _session_lock_second() -> None:
     kernel = SimpleNamespace(session_locks={}, active_sessions={})
     dp = DecisionProcessor(kernel)  # type: ignore[arg-type]
-    await dp._acquire_session_lock("c", "t1")
+    await dp._acquire_session_lock("c", "t1", "cli")
     kernel._send_reply = AsyncMock()
     with pytest.raises(asyncio.CancelledError):
-        await dp._acquire_session_lock("c", "t2")
+        await dp._acquire_session_lock("c", "t2", "cli")
     await dp._release_session_lock("c")
 
 
@@ -152,6 +152,13 @@ async def _concurrent_process(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     kernel = _kernel_direct_answer()
+
+    async def _route_slow(_t: str):
+        await asyncio.sleep(0.06)
+        return "DIRECT_ANSWER", "ok"
+
+    kernel.intent_router.route_task = AsyncMock(side_effect=_route_slow)
+
     dp = DecisionProcessor(kernel)  # type: ignore[arg-type]
 
     ev1 = AdamiEvent(
@@ -182,6 +189,8 @@ async def _concurrent_process(monkeypatch: pytest.MonkeyPatch) -> None:
     await asyncio.wait_for(asyncio.gather(run1(), run2()), timeout=5.0)
     lock = kernel.session_locks.get("99")
     assert lock is None or not lock.locked()
+    # Atomic session turn: overlapping same-chat events must not double-invoke the router.
+    assert kernel.intent_router.route_task.call_count == 1
 
 
 def test_concurrent_process_same_chat_one_cancels_no_deadlock(

@@ -75,8 +75,13 @@ def validate_startup_prereqs() -> list[MissingItem]:
             MissingItem(key="profile", hint=_init_t("init.validate.runtime_profile_missing"))
         )
 
-    # Commercial required: local LLM must be enabled as a fallback.
-    local_ok = bool(getattr(s, "OLLAMA_ENABLED", False)) or bool(getattr(s, "ADAMI_MLX_ENABLED", False))
+    # LLM availability gate:
+    # - alpha1.0 allowed cloud-only setups; Milestone A/B introduced a stricter "local fallback required"
+    #   gate, which blocks CLI boot for operators who only use cloud providers.
+    # - We accept *either* a local runtime (Ollama/MLX) *or* at least one cloud API key.
+    local_ok = bool(getattr(s, "OLLAMA_ENABLED", False)) or bool(
+        getattr(s, "ADAMI_MLX_ENABLED", False)
+    )
     cloud_keys: Iterable[str] = (
         "OPENAI_API_KEY",
         "ANTHROPIC_API_KEY",
@@ -91,16 +96,10 @@ def validate_startup_prereqs() -> list[MissingItem]:
         "LLM_API_KEY",
     )
     cloud_ok = any(bool(str(getattr(s, k, "") or "").strip()) for k in cloud_keys)
-    # Commercial required: at least one cloud API key AND local fallback must both be present.
-    if not local_ok:
-        missing.append(MissingItem(key="llm_local", hint=_init_t("init.validate.local_llm_required")))
-    if not cloud_ok:
-        missing.append(
-            MissingItem(
-                key="llm_cloud",
-                hint=_init_t("init.validate.cloud_key_required"),
-            )
-        )
+    if not (local_ok or cloud_ok):
+        # Keep the hint in terms of local fallback because it's the easiest "first fix",
+        # but the gate is now "local OR cloud" so cloud-only operators can proceed.
+        missing.append(MissingItem(key="llm", hint=_init_t("init.validate.local_llm_required")))
 
     # If local is enabled, require a non-empty model name.
     if bool(getattr(s, "OLLAMA_ENABLED", False)) and not str(
@@ -162,6 +161,63 @@ def _ask_non_empty(console: Console, prompt_key: str, *, default: Optional[str] 
         console.print(f"[red]{_init_t('init.cli.required')}[/red]")
 
 
+def _ask_optional_number(
+    console: Console,
+    prompt_key: str,
+    *,
+    default: Optional[str] = None,
+    min_value: Optional[float] = None,
+    allow_zero: bool = True,
+) -> Optional[str]:
+    """Ask for an optional numeric value. Empty input returns None (no override)."""
+    while True:
+        raw = console.input(_init_t(prompt_key, default=(default or "")) + " ").strip()
+        if raw == "":
+            return None
+        try:
+            v = float(raw)
+        except Exception:
+            console.print(f"[red]{_init_t('init.cli.number_invalid')}[/red]")
+            continue
+        if (not allow_zero) and v == 0:
+            console.print(f"[red]{_init_t('init.cli.number_invalid')}[/red]")
+            continue
+        if min_value is not None and v < float(min_value):
+            console.print(f"[red]{_init_t('init.cli.number_too_small', min=min_value)}[/red]")
+            continue
+        # Store as raw string; Settings will coerce.
+        return str(raw)
+
+
+def _ask_optional_int(
+    console: Console,
+    prompt_key: str,
+    *,
+    default: Optional[str] = None,
+    min_value: Optional[int] = None,
+    allow_zero: bool = True,
+) -> Optional[str]:
+    """Ask for an optional int value. Empty input returns None (no override)."""
+    while True:
+        raw = console.input(_init_t(prompt_key, default=(default or "")) + " ").strip()
+        if raw == "":
+            return None
+        try:
+            v = int(raw)
+        except Exception:
+            console.print(f"[red]{_init_t('init.cli.number_invalid')}[/red]")
+            continue
+        if (not allow_zero) and v == 0:
+            console.print(f"[red]{_init_t('init.cli.number_invalid')}[/red]")
+            continue
+        if min_value is not None and v < int(min_value):
+            console.print(
+                f"[red]{_init_t('init.cli.number_too_small', min=min_value)}[/red]"
+            )
+            continue
+        return str(v)
+
+
 def run_first_run_initializer(console: Console) -> None:
     """Run the strict first-run initializer wizard (CLI).
 
@@ -218,6 +274,112 @@ def run_first_run_initializer(console: Console) -> None:
         write_cli_overrides(updates)
     else:
         write_cli_overrides({"OLLAMA_ENABLED": "false"})
+
+    # Step 2.5) Reliability knobs (optional but recommended): timeouts / queues / concurrency.
+    console.print(f"\n[bold]{_init_t('init.cli.reliability.title')}[/bold]")
+    console.print(f"[dim]{_init_t('init.cli.reliability.hint')}[/dim]")
+    if _ask_yn(console, "init.cli.reliability.configure_prompt", default_yes=True):
+        from adami_kernel import config as config_mod
+
+        s = config_mod.settings
+        updates3: dict[str, str] = {}
+        # Hard timeouts.
+        v = _ask_optional_number(
+            console,
+            "init.cli.reliability.cli_hard_timeout_prompt",
+            default=str(getattr(s, "ADAMI_CLI_TASK_HARD_TIMEOUT_SEC", "") or ""),
+            min_value=0.0,
+            allow_zero=True,
+        )
+        if v is not None:
+            updates3["ADAMI_CLI_TASK_HARD_TIMEOUT_SEC"] = v
+        v2 = _ask_optional_number(
+            console,
+            "init.cli.reliability.task_hard_timeout_prompt",
+            default=str(getattr(s, "ADAMI_TASK_HARD_TIMEOUT_SEC", "") or ""),
+            min_value=0.0,
+            allow_zero=True,
+        )
+        if v2 is not None:
+            updates3["ADAMI_TASK_HARD_TIMEOUT_SEC"] = v2
+
+        # Sub-timeouts (tools): WEB_SEARCH path uses this (distinct from MCP server timeout).
+        wst = _ask_optional_number(
+            console,
+            "init.cli.reliability.web_search_timeout_prompt",
+            default=str(getattr(s, "ADAMI_WEB_SEARCH_TIMEOUT_SEC", "") or ""),
+            min_value=0.0,
+            allow_zero=True,
+        )
+        if wst is not None:
+            updates3["ADAMI_WEB_SEARCH_TIMEOUT_SEC"] = wst
+
+        # Queue knobs.
+        q_ttl = _ask_optional_number(
+            console,
+            "init.cli.reliability.queue_ttl_prompt",
+            default=str(getattr(s, "ADAMI_TASK_QUEUE_TTL_SEC", "") or ""),
+            min_value=0.0,
+            allow_zero=True,
+        )
+        if q_ttl is not None:
+            updates3["ADAMI_TASK_QUEUE_TTL_SEC"] = q_ttl
+        q_ip_ttl = _ask_optional_number(
+            console,
+            "init.cli.reliability.queue_in_progress_ttl_prompt",
+            default=str(getattr(s, "ADAMI_TASK_QUEUE_IN_PROGRESS_TTL_SEC", "") or ""),
+            min_value=0.0,
+            allow_zero=True,
+        )
+        if q_ip_ttl is not None:
+            updates3["ADAMI_TASK_QUEUE_IN_PROGRESS_TTL_SEC"] = q_ip_ttl
+        q_max_chat = _ask_optional_int(
+            console,
+            "init.cli.reliability.queue_max_per_chat_prompt",
+            default=str(getattr(s, "ADAMI_TASK_QUEUE_MAX_PER_CHAT", "") or ""),
+            min_value=0,
+            allow_zero=True,
+        )
+        if q_max_chat is not None:
+            updates3["ADAMI_TASK_QUEUE_MAX_PER_CHAT"] = q_max_chat
+        q_max_total = _ask_optional_int(
+            console,
+            "init.cli.reliability.queue_max_total_prompt",
+            default=str(getattr(s, "ADAMI_TASK_QUEUE_MAX_TOTAL", "") or ""),
+            min_value=0,
+            allow_zero=True,
+        )
+        if q_max_total is not None:
+            updates3["ADAMI_TASK_QUEUE_MAX_TOTAL"] = q_max_total
+        # Overflow mode.
+        om = console.input(
+            _init_t(
+                "init.cli.reliability.queue_overflow_mode_prompt",
+                default=str(
+                    getattr(s, "ADAMI_TASK_QUEUE_OVERFLOW_MODE", "drop_oldest") or "drop_oldest"
+                ),
+            )
+            + " "
+        ).strip()
+        if om:
+            if om not in ("drop_oldest", "reject"):
+                console.print(f"[red]{_init_t('init.cli.choice_invalid')}[/red]")
+            else:
+                updates3["ADAMI_TASK_QUEUE_OVERFLOW_MODE"] = om
+
+        # Event consumer concurrency.
+        ec = _ask_optional_int(
+            console,
+            "init.cli.reliability.event_consumer_max_concurrent_prompt",
+            default=str(getattr(s, "ADAMI_EVENT_CONSUMER_MAX_CONCURRENT", "") or ""),
+            min_value=1,
+            allow_zero=False,
+        )
+        if ec is not None:
+            updates3["ADAMI_EVENT_CONSUMER_MAX_CONCURRENT"] = ec
+
+        if updates3:
+            write_cli_overrides(updates3)
 
     # Step 3) Cloud API keys (required in commercial mode: at least one key must be set).
     console.print(f"\n[bold]{_init_t('init.cli.cloud.title')}[/bold]")

@@ -10,7 +10,7 @@ from adami_kernel.config import settings
 from adami_kernel.cortex.evolution import EvolutionEngine
 from adami_kernel.cortex.meta_cortex import MetaCortex
 from adami_kernel.hippocampus.layered_memory import LayeredMemory
-from adami_kernel.i18n.boot_msg import boot_t
+from adami_kernel.cortex.endocrine import status_or_normal
 from adami_kernel.market.github_hunter import GitHubHunter
 from adami_kernel.market.skill_market import SkillMarket
 from adami_kernel.self_test.self_test_engine import SelfTestEngine
@@ -28,6 +28,7 @@ class EvolutionOrchestrator:
         evolution_engine: EvolutionEngine,
         memory: LayeredMemory,
         router=None,
+        endocrine=None,
     ):  # 新增 router 参数
         self.meta_cortex = meta_cortex
         self.skill_market = skill_market
@@ -36,6 +37,7 @@ class EvolutionOrchestrator:
         self.evolution_engine = evolution_engine
         self.memory = memory
         self.router = router  # 保存 router 供评估使用
+        self.endocrine = endocrine
         self._running = False
 
     async def start(self):
@@ -195,7 +197,7 @@ class EvolutionOrchestrator:
         logger.info(boot_t("boot.log.evolution_cycle_start"))
         plan = await self.meta_cortex.evaluate_and_plan(
             current_persona=boot_t("cjk_gate.meta_cortex_proactive_persona"),
-            endocrine_status="normal",
+            endocrine_status=status_or_normal(self.endocrine),
         )
         if plan is None:
             logger.warning(boot_t("boot.log.evolution_meta_empty_plan"))

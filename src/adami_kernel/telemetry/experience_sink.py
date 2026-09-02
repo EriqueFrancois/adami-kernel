@@ -30,6 +30,13 @@ experience_primary_trace_ctx: ContextVar[Optional[str]] = ContextVar(
     "experience_primary_trace", default=None
 )
 
+# Per-async-context stack for safely resetting ContextVar tokens.
+# Do NOT use a process-global stack for ContextVar Tokens; tokens are only valid
+# in the context they were created in, and concurrent tasks would corrupt it.
+_experience_ctx_stack_ctx: ContextVar[Optional[list[tuple[Token, Token]]]] = ContextVar(
+    "experience_ctx_stack", default=None
+)
+
 
 # ---------------------------------------------------------------------------
 # Schema
@@ -180,8 +187,7 @@ class ExperienceSink:
     ) -> None:
         self._enabled = enabled
         self._aggregator = aggregator
-        self._lock = threading.Lock()
-        self._ctx_stack: List[tuple[Token, Token]] = []
+        # ContextVar token stacks must be per-context (not shared across concurrent tasks).
 
     @classmethod
     def from_settings(cls) -> ExperienceSink:
@@ -207,8 +213,11 @@ class ExperienceSink:
             return
         tok_e = experience_episode_id_ctx.set(episode_id)
         tok_p = experience_primary_trace_ctx.set(primary_trace_id)
-        with self._lock:
-            self._ctx_stack.append((tok_e, tok_p))
+        st = _experience_ctx_stack_ctx.get()
+        if st is None:
+            st = []
+        st.append((tok_e, tok_p))
+        _experience_ctx_stack_ctx.set(st)
 
     def end_episode(
         self,
@@ -223,10 +232,11 @@ class ExperienceSink:
         self._aggregator.finalize_episode(episode_id, status, extra_meta=extra_meta)
         if not pop_context:
             return
-        with self._lock:
-            if not self._ctx_stack:
-                return
-            tok_e, tok_p = self._ctx_stack.pop()
+        st = _experience_ctx_stack_ctx.get()
+        if not st:
+            return
+        tok_e, tok_p = st.pop()
+        _experience_ctx_stack_ctx.set(st)
         experience_episode_id_ctx.reset(tok_e)
         experience_primary_trace_ctx.reset(tok_p)
 

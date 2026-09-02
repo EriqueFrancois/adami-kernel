@@ -1,0 +1,16 @@
+[
+  {
+    "index": 0,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload_keys": ["task", "platform"]
+    }
+  },
+  {
+    "index": 2,
+    "assertion": {
+      "expect_payload_keys": ["kind"]
+    }
+  }
+]
+

@@ -1,0 +1,51 @@
+[
+  {
+    "index": 0,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload_keys": ["task", "chat_id", "platform"]
+    }
+  },
+  {
+    "index": 2,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload": { "event_type": "PLANNER_START" }
+    }
+  },
+  {
+    "index": 7,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload": { "event_type": "BRANCH_DECISION", "branch": "mcp_flaky" }
+    }
+  },
+  {
+    "index": 0,
+    "assertion": {
+      "expect_payload_anywhere": { "event_type": "ROLLBACK", "tool": "MCP_FLAKY" }
+    }
+  },
+  {
+    "index": -3,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload": { "event_type": "REPLY" }
+    }
+  },
+  {
+    "index": -2,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload": { "event_type": "PLANNER_DONE" }
+    }
+  },
+  {
+    "index": -1,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload": { "event_type": "REPLY" }
+    }
+  }
+]
+

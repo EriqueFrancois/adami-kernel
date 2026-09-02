@@ -1,0 +1,40 @@
+[
+  {
+    "index": 0,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload_keys": ["task", "chat_id", "platform"]
+    }
+  },
+  {
+    "index": 1,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload": {
+        "event_type": "TOOL_CALL_START",
+        "tool": "web_search"
+      }
+    }
+  },
+  {
+    "index": 2,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload": {
+        "event_type": "TOOL_CALL_DONE",
+        "tool": "web_search"
+      },
+      "expect_payload_keys": ["result"]
+    }
+  },
+  {
+    "index": -1,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload": {
+        "event_type": "REPLY"
+      }
+    }
+  }
+]
+

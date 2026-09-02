@@ -54,6 +54,30 @@ The wizard writes to a local override file (loaded after `.env`):
 To re-run onboarding, delete the overrides file (or set `ADAMI_FIRST_RUN_COMPLETE=false` inside it),
 then run `poetry run adami` again.
 
+#### Adjust timeouts (recommended)
+
+If you run long tasks through CLI / Telegram / Discord, set hard timeouts to prevent a stuck task
+from blocking the per-chat FIFO queue:
+
+- `ADAMI_CLI_TASK_HARD_TIMEOUT_SEC` (default 900s)
+- `ADAMI_TASK_HARD_TIMEOUT_SEC` (default 900s)
+
+You can change these in the CLI **System settings** menu (it writes to `.adami_data/cli_overrides.env`)
+or by exporting the variables in your environment.
+
+#### DLQ (Dead Letter Queue) operations (recommended)
+
+The EventBus uses a SQLite-backed DLQ to avoid losing events under transient load. If you upgraded from
+older versions and see **RBAC/DLQ log spam**, you can clear the DLQ once on boot:
+
+- `ADAMI_DLQ_CLEAR_ON_BOOT=1`
+
+Manual DLQ cleanup (repo root, default path):
+
+```bash
+rm -f .adami_data/dlq.db .adami_data/dlq.db-wal .adami_data/dlq.db-shm
+```
+
 ## Architecture (Multi-Agent Orchestration)
 
 ```mermaid
@@ -89,6 +113,8 @@ observability, multi-tenant collaboration, managed service and SLAs), contact us
 - **Cloud**: managed AdamI (SaaS)
 
 Contact entry: configure your licensing / booking contact in `COMMERCIAL_LICENSE.md`.
+
+Packaging overview (OSS vs Enterprise/Cloud): `ENTERPRISE_FEATURE_MATRIX.md`.
 
 ### Private deployment resources
 
@@ -161,9 +187,17 @@ Copy into the PR when touching `cortex/intent_adaptive`, `DecisionProcessor` int
 4. (Optional) `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 poetry run pytest tests/test_planner_intent_adaptive_meta_step71.py -q` — rows that need SQLite may `pytest.importorskip("aiosqlite")` when the dependency is missing
 5. Confirm CI job **`compliance-and-test`** is green on the PR (includes the **Intent adaptive — offline test matrix (Step 9)** step and the full `pytest -m "not integration and not stress"` gate)
 
-### Release notes (no root `CHANGELOG`)
+### Release notes (CHANGELOG + PR narrative)
 
-This repository does **not** ship a root-level `CHANGELOG.md`. For **intent adaptive** changes, use **[docs/intent_adaptive_pipeline.md](docs/intent_adaptive_pipeline.md)** (especially § Step 10 for cleanup and release narrative) and copy relevant bullets into the PR description when behaviour, defaults, or safety gates change. The same “no root changelog” pattern applies to the **document pipeline** (see *Optional capabilities — document pipeline* above).
+This repository **does** ship a root-level `CHANGELOG.md`, and official versions are published via
+**GitHub Releases**.
+
+For complex areas (especially **intent adaptive** and the **document pipeline**), please also use
+the relevant docs as your detailed change narrative source of truth and copy key operator-facing
+bullets into the PR description when behaviour, defaults, or safety gates change:
+
+- **Intent adaptive**: [docs/intent_adaptive_pipeline.md](docs/intent_adaptive_pipeline.md) (see § Step 10)
+- **Document pipeline**: [docs/document_parsing_baseline_step0.md](docs/document_parsing_baseline_step0.md) (see Step 8)
 
 i18n (non-exhaustive key ids): **`doc.intent_adaptive.overview`**, **`doc.intent_adaptive.step1_models`**,
 **`doc.intent_adaptive.step2_template_registry`**, **`doc.intent_adaptive.rule_tier`**,
@@ -276,7 +310,7 @@ Default `poetry install` does **not** install MarkItDown. See [docs/document_par
 
 **Step 7 (test matrix / CI)**: `tests/test_markitdown_bridge.py` — mocked MarkItDown failures assert fallback through a **stub `unstructured.partition`** (no `unstructured` pip in the default job); **one real `.docx`** round-trip when `poetry install -E markitdown` is present (`pytest.importorskip("markitdown")` otherwise skips that row). CI: job **`markitdown-bridge`** runs `poetry install -E markitdown` + that file only (see `ci.yml` / `.github/workflows/kernel-ci.yml`). PR checklist bullets: [docs/document_parsing_baseline_step0.md](docs/document_parsing_baseline_step0.md) (Step 7). UI hint: `doc.pipeline.step7`.
 
-**Step 8 (release & migration notes)**: there is **no** root `CHANGELOG` in this repo; use the section **Optional capabilities — document pipeline** below and [docs/document_parsing_baseline_step0.md](docs/document_parsing_baseline_step0.md) (Step 8) for install defaults, Markdown-first behavior, rollback, and skills guidance. Copy the same bullets into the PR description when touching this area. UI hint: `doc.pipeline.step8`.
+**Step 8 (release & migration notes)**: update `CHANGELOG.md` and use GitHub Releases for official versions; use the section **Optional capabilities — document pipeline** below and [docs/document_parsing_baseline_step0.md](docs/document_parsing_baseline_step0.md) (Step 8) for install defaults, Markdown-first behavior, rollback, and skills guidance. Copy the same bullets into the PR description when touching this area. UI hint: `doc.pipeline.step8`.
 
 Logs are written to:
 
@@ -296,7 +330,7 @@ npm run dev
 
 ## Optional capabilities — document pipeline (Step 8)
 
-Release-style notes for operators and reviewers (no root `CHANGELOG` in this repository).
+Release-style notes for operators and reviewers (keep `CHANGELOG.md` updated for user-facing changes).
 
 ### Optional extra
 

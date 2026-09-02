@@ -167,6 +167,9 @@ class DiscordNerve(BaseNerve):
             try:
                 # 1) 优先 DM 默认用户（更符合“只发给我，不打扰频道”）
                 if self.default_user_id and not self._discord_on_ready_dm_sent:
+                    if not bool(getattr(settings, "ADAMI_MESSENGER_NOTIFY_BOOT", False)):
+                        self._discord_on_ready_dm_sent = True
+                        return
                     try:
                         user = self.bot.get_user(
                             int(self.default_user_id)

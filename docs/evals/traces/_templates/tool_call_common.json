@@ -1,0 +1,19 @@
+{
+  "name": "tool_call_common",
+  "applies_when": {
+    "payload_event_type_prefix": "TOOL_CALL_"
+  },
+  "assertions_append": [
+    {
+      "index": -1,
+      "assertion": { "forbid_string": "sk-" }
+    }
+  ],
+  "rules": {
+    "require_tool_field_on_tool_calls": true,
+    "require_reply_after_timeout": true,
+    "require_reply_after_error": true,
+    "require_no_filler_reply": true
+  }
+}
+

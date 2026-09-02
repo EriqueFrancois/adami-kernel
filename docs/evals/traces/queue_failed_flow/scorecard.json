@@ -1,0 +1,15 @@
+{
+  "schema_version": "adami_scorecard.v1",
+  "trace_name": "queue_failed_flow",
+  "thresholds": {
+    "min_correctness": 95,
+    "min_safety": 95,
+    "min_ux": 95,
+    "min_noise": 95,
+    "min_operability": 95,
+    "min_latency": 80,
+    "min_cost": 95,
+    "max_llm_calls": 0
+  }
+}
+

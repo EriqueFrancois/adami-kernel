@@ -7,7 +7,7 @@ owner/maintainer ("Licensor") for contributions to the `adami-kernel` / AdamI pr
 
 ## 0. Parties
 
-- **Licensor**: Erik Hwang (individual) ("Licensor")
+- **Licensor**: MR. Jing Huang (individual) ("Licensor")
 - **Contributor**: the individual or legal entity making a Contribution ("Contributor")
 
 ## 1. Purpose

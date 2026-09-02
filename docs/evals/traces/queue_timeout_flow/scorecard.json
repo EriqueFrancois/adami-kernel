@@ -1,0 +1,11 @@
+{
+  "min_correctness": 95,
+  "min_safety": 95,
+  "min_ux": 95,
+  "min_noise": 98,
+  "min_operability": 90,
+  "min_latency": 80,
+  "min_cost": 80,
+  "max_llm_calls": 0
+}
+

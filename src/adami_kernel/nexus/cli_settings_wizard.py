@@ -146,6 +146,7 @@ def _category_id_for_field(name: str) -> str:
         or name.startswith("ADAMI_ORCHESTRATOR_")
         or name.startswith("ADAMI_MULTI_AGENT_")
         or name == "ADAMI_SKILL_TIMEOUT"
+        or name in ("ADAMI_CLI_TASK_HARD_TIMEOUT_SEC", "ADAMI_TASK_HARD_TIMEOUT_SEC")
     ):
         return "orchestration"
     if (

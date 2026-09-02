@@ -1,0 +1,32 @@
+[
+  {
+    "index": 0,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload_keys": ["task", "platform", "chat_id"]
+    }
+  },
+  {
+    "index": 2,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload_keys": ["event_type", "rtype", "note_path"]
+    }
+  },
+  {
+    "index": 3,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload_keys": ["event_type", "text", "rtype"],
+      "forbid_string": "sk-"
+    }
+  },
+  {
+    "index": 1,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload_keys": ["event_type", "rtype"]
+    }
+  }
+]
+

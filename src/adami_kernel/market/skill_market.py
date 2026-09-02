@@ -13,7 +13,7 @@ from adami_kernel.cortex.meta_cortex import MetaCortex
 from adami_kernel.i18n import t
 from adami_kernel.market.github_hunter import GitHubHunter
 from adami_kernel.market.melter import SkillMelter
-from adami_kernel.market.prompt_constants import META_CORTEX_PERSONA
+from adami_kernel.cortex.endocrine import status_or_normal
 
 logger = logging.getLogger("AdamI-SkillMarket")
 
@@ -35,10 +35,12 @@ class SkillMarket:
         evolution_engine: EvolutionEngine,
         meta_cortex: Optional[MetaCortex] = None,
         router=None,
+        endocrine=None,
     ):
         self.evolution = evolution_engine
         self.meta_cortex = meta_cortex
         self.router = router
+        self.endocrine = endocrine
 
         # ====================== 【关键修复】GitHubHunter 必须传入 router ======================
         if router is None:
@@ -239,7 +241,8 @@ class SkillMarket:
             return []
         try:
             plan = await self.meta_cortex.evaluate_and_plan(
-                current_persona=META_CORTEX_PERSONA, endocrine_status="normal"
+                current_persona=META_CORTEX_PERSONA,
+                endocrine_status=status_or_normal(self.endocrine),
             )
             genome_plan = plan.get("genome_plan", []) if isinstance(plan, dict) else []
             recommendations = []

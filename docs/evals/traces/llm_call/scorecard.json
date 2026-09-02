@@ -1,0 +1,12 @@
+{
+  "min_correctness": 100,
+  "min_safety": 100,
+  "min_ux": 80,
+  "min_noise": 100,
+  "min_operability": 95,
+  "min_cost": 90,
+  "min_latency": 100,
+  "max_llm_calls": 1,
+  "max_duration_sec": 10.0
+}
+

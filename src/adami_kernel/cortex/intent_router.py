@@ -134,15 +134,17 @@ class SemanticIntentRouter:
             logger.info(_ir_msg("ir.log.intake_auto", n=len(task)))
             return ("SYSTEM_ACTION", "INTAKE_AUTO")
 
-        for pattern in self.complex_patterns:
-            if pattern.search(task):
-                logger.info(_ir_msg("ir.log.complex_fast"))
-                return ("COMPLEX_TASK", None)
-
+        # Fast chit-chat / regex shortcuts before broad "complex" heuristics so brief
+        # greetings (你好、hi、…) stay on the cheap path even if a complex regex matches.
         for pattern in self.fast_patterns:
             if pattern.search(task):
                 logger.info(_ir_msg("ir.log.fast_hit"))
                 return await self._generate_fast_answer(task)
+
+        for pattern in self.complex_patterns:
+            if pattern.search(task):
+                logger.info(_ir_msg("ir.log.complex_fast"))
+                return ("COMPLEX_TASK", None)
 
         logger.info(_ir_msg("ir.log.hybrid_fuzzy"))
         fast_prompt = _ir_msg("ir.prompt.fast_router", task=task)

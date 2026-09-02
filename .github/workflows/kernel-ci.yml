@@ -232,6 +232,296 @@ jobs:
           poetry run pytest -p pytest_asyncio.plugin tests/replay/ \
             tests/test_acceptance_sim_step2_replay.py \
             -q --tb=short
+      - name: Sim — replay refs (compute baseline/head)
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+
+          HEAD_SHA="$(git rev-parse HEAD)"
+          # Fetch main so we can compute a merge-base baseline.
+          git fetch --depth=200 origin main
+          BASE_SHA="$(git merge-base origin/main HEAD)"
+          echo "baseline sha: $BASE_SHA"
+          echo "head sha: $HEAD_SHA"
+          echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
+          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+
+      - name: Sim — replay eval (baseline)
+        run: |
+          set -euo pipefail
+          git checkout --detach "$BASE_SHA"
+          poetry run adami-replay-eval \
+            --suite-dir docs/evals/traces \
+            --forbid "sk-" \
+            --out-json reports/replay_eval_suite.baseline.json \
+            --out-md reports/replay_eval_suite.baseline.md
+      - name: Sim — replay run isomorphic (baseline, record-only)
+        if: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          git checkout --detach "$BASE_SHA"
+          mkdir -p reports/isomorphic/baseline
+          python3 - <<'PY'
+          from __future__ import annotations
+          import json
+          import os
+          import subprocess
+          import sys
+          from pathlib import Path
+          
+          gate = Path("docs/evals/traces/isomorphic_gate.json")
+          raw = json.loads(gate.read_text(encoding="utf-8"))
+          allow = [str(x) for x in (raw.get("allowlist") or []) if str(x).strip()]
+          deny = {str(x) for x in (raw.get("denylist") or []) if str(x).strip()}
+          allow = [x for x in allow if x not in deny]
+          if not allow:
+            print("isomorphic gate: empty allowlist", file=sys.stderr)
+            os._exit(4)
+          
+          failures: list[str] = []
+          for name in allow:
+            trace = Path("docs/evals/traces") / name / "golden_trace.ndjson"
+            out = Path("reports/isomorphic/baseline") / f"{name}.replayed.ndjson"
+            if not trace.is_file():
+              failures.append(f"missing_trace:{name}")
+              continue
+            cmd = [
+              sys.executable,
+              "-m",
+              "adami_kernel.integration.sim.replay_run_cli",
+              str(trace),
+              "--out-trace",
+              str(out),
+              "--verify-isomorphic",
+            ]
+            r = subprocess.run(cmd, text=True, capture_output=True)
+            if r.returncode != 0:
+              failures.append(f"isomorphic_fail:{name}")
+              sys.stderr.write(f"\n== isomorphic FAIL {name} ==\n")
+              sys.stderr.write(r.stdout)
+              sys.stderr.write(r.stderr)
+          
+          if failures:
+            # Record-only: do not fail CI for baseline; just print failures.
+            print("\nIsomorphic baseline failures (record-only):", failures, file=sys.stderr)
+            os._exit(0)
+          print(f"isomorphic baseline PASS: {len(allow)} traces")
+          PY
+      - name: Sim — replay eval (head)
+        run: |
+          set -euo pipefail
+          git checkout --detach "$HEAD_SHA"
+          poetry run adami-replay-eval \
+            --suite-dir docs/evals/traces \
+            --forbid "sk-" \
+            --out-json reports/replay_eval_suite.head.json \
+            --out-md reports/replay_eval_suite.head.md
+      - name: Sim — replay run isomorphic gate (head, strong gate)
+        run: |
+          set -euo pipefail
+          git checkout --detach "$HEAD_SHA"
+          mkdir -p reports/isomorphic/head
+          python3 - <<'PY'
+          from __future__ import annotations
+          import json
+          import os
+          import subprocess
+          import sys
+          from pathlib import Path
+          
+          gate = Path("docs/evals/traces/isomorphic_gate.json")
+          raw = json.loads(gate.read_text(encoding="utf-8"))
+          allow = [str(x) for x in (raw.get("allowlist") or []) if str(x).strip()]
+          deny = {str(x) for x in (raw.get("denylist") or []) if str(x).strip()}
+          allow = [x for x in allow if x not in deny]
+          if not allow:
+            print("isomorphic gate: empty allowlist", file=sys.stderr)
+            os._exit(4)
+          
+          failures: list[str] = []
+          for name in allow:
+            trace = Path("docs/evals/traces") / name / "golden_trace.ndjson"
+            out = Path("reports/isomorphic/head") / f"{name}.replayed.ndjson"
+            if not trace.is_file():
+              failures.append(f"missing_trace:{name}")
+              continue
+            cmd = [
+              sys.executable,
+              "-m",
+              "adami_kernel.integration.sim.replay_run_cli",
+              str(trace),
+              "--out-trace",
+              str(out),
+              "--verify-isomorphic",
+            ]
+            r = subprocess.run(cmd, text=True, capture_output=True)
+            if r.returncode != 0:
+              failures.append(f"isomorphic_fail:{name}")
+              sys.stderr.write(f"\n== isomorphic FAIL {name} ==\n")
+              sys.stderr.write(r.stdout)
+              sys.stderr.write(r.stderr)
+          
+          if failures:
+            print("\nIsomorphic gate failures:", failures, file=sys.stderr)
+            os._exit(2)
+          print(f"isomorphic gate PASS: {len(allow)} traces")
+          PY
+      - name: Sim — replay run inject-all gate (baseline, record-only)
+        if: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          git checkout --detach "$BASE_SHA"
+          mkdir -p reports/inject_all/baseline
+          python3 - <<'PY'
+          from __future__ import annotations
+          import json
+          import os
+          import subprocess
+          import sys
+          from pathlib import Path
+          
+          gate = Path("docs/evals/traces/inject_all_gate.json")
+          raw = json.loads(gate.read_text(encoding="utf-8"))
+          allow = [str(x) for x in (raw.get("allowlist") or []) if str(x).strip()]
+          deny = {str(x) for x in (raw.get("denylist") or []) if str(x).strip()}
+          allow = [x for x in allow if x not in deny]
+          if not allow:
+            print("inject-all gate: empty allowlist", file=sys.stderr)
+            os._exit(4)
+          
+          failures: list[str] = []
+          for name in allow:
+            trace = Path("docs/evals/traces") / name / "golden_trace.ndjson"
+            out = Path("reports/inject_all/baseline") / f"{name}.replayed.ndjson"
+            if not trace.is_file():
+              failures.append(f"missing_trace:{name}")
+              continue
+            cmd = [
+              sys.executable,
+              "-m",
+              "adami_kernel.integration.sim.replay_run_cli",
+              str(trace),
+              "--out-trace",
+              str(out),
+              "--inject-all-records",
+              "--verify-isomorphic",
+            ]
+            r = subprocess.run(cmd, text=True, capture_output=True, timeout=90)
+            if r.returncode != 0:
+              failures.append(f"inject_all_fail:{name}")
+              sys.stderr.write(f"\n== inject-all FAIL {name} ==\n")
+              sys.stderr.write(r.stdout)
+              sys.stderr.write(r.stderr)
+          
+          if failures:
+            print("\nInject-all baseline failures (record-only):", failures, file=sys.stderr)
+            os._exit(0)
+          print(f"inject-all baseline PASS: {len(allow)} traces")
+          PY
+      - name: Sim — replay run inject-all gate (head, strong gate)
+        run: |
+          set -euo pipefail
+          git checkout --detach "$HEAD_SHA"
+          mkdir -p reports/inject_all/head
+          python3 - <<'PY'
+          from __future__ import annotations
+          import json
+          import os
+          import subprocess
+          import sys
+          from pathlib import Path
+          
+          gate = Path("docs/evals/traces/inject_all_gate.json")
+          raw = json.loads(gate.read_text(encoding="utf-8"))
+          allow = [str(x) for x in (raw.get("allowlist") or []) if str(x).strip()]
+          deny = {str(x) for x in (raw.get("denylist") or []) if str(x).strip()}
+          allow = [x for x in allow if x not in deny]
+          if not allow:
+            print("inject-all gate: empty allowlist", file=sys.stderr)
+            os._exit(4)
+          
+          failures: list[str] = []
+          for name in allow:
+            trace = Path("docs/evals/traces") / name / "golden_trace.ndjson"
+            out = Path("reports/inject_all/head") / f"{name}.replayed.ndjson"
+            if not trace.is_file():
+              failures.append(f"missing_trace:{name}")
+              continue
+            cmd = [
+              sys.executable,
+              "-m",
+              "adami_kernel.integration.sim.replay_run_cli",
+              str(trace),
+              "--out-trace",
+              str(out),
+              "--inject-all-records",
+              "--verify-isomorphic",
+            ]
+            r = subprocess.run(cmd, text=True, capture_output=True, timeout=90)
+            if r.returncode != 0:
+              failures.append(f"inject_all_fail:{name}")
+              sys.stderr.write(f"\n== inject-all FAIL {name} ==\n")
+              sys.stderr.write(r.stdout)
+              sys.stderr.write(r.stderr)
+          
+          if failures:
+            print("\nInject-all gate failures:", failures, file=sys.stderr)
+            os._exit(2)
+          print(f"inject-all gate PASS: {len(allow)} traces")
+          PY
+      - name: Sim — fault injection smoke (head, expected failure)
+        run: |
+          set -euo pipefail
+          git checkout --detach "$HEAD_SHA"
+          mkdir -p reports/faults
+          # This intentionally drops a critical decision event so evaluation should FAIL.
+          set +e
+          poetry run adami-replay-run \
+            docs/evals/traces/planner_multistep/golden_trace.ndjson \
+            --out-trace reports/faults/planner_multistep.faulted.ndjson \
+            --faults docs/evals/traces/_faults/drop_branch_decision.json \
+            --out-eval-json reports/faults/planner_multistep.faulted.eval.json \
+            --out-eval-md reports/faults/planner_multistep.faulted.eval.md
+          rc="$?"
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "fault injection smoke expected failure, got rc=0" >&2
+            exit 2
+          fi
+          test -f reports/faults/planner_multistep.faulted.ndjson
+          test -f reports/faults/planner_multistep.faulted.eval.json
+          test -f reports/faults/planner_multistep.faulted.eval.md
+      - name: Sim — replay compare (baseline vs head)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          set -euo pipefail
+          poetry run adami-replay-compare \
+            --baseline-json reports/replay_eval_suite.baseline.json \
+            --head-json reports/replay_eval_suite.head.json \
+            --max-score-drop 1 \
+            --max-dim-drop 1 \
+            --out-json reports/replay_compare.json \
+            --out-md reports/replay_compare.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: replay-eval-report
+          path: |
+            reports/replay_eval_suite.baseline.json
+            reports/replay_eval_suite.baseline.md
+            reports/replay_eval_suite.head.json
+            reports/replay_eval_suite.head.md
+            reports/replay_compare.json
+            reports/replay_compare.md
+            reports/isomorphic/baseline/*.replayed.ndjson
+            reports/isomorphic/head/*.replayed.ndjson
+            reports/inject_all/baseline/*.replayed.ndjson
+            reports/inject_all/head/*.replayed.ndjson
+            reports/faults/*.faulted.ndjson
+            reports/faults/*.faulted.eval.json
+            reports/faults/*.faulted.eval.md
+          if-no-files-found: warn
 
   replay-stress:
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}

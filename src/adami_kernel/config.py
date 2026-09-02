@@ -67,7 +67,17 @@ class Settings(BaseSettings):
     # Per-chat CLI/Telegram/Discord 任务队列 JSON（持久化）；路径默认 ``{ADAMI_DATA_DIR}/task_queue.json``。
     ADAMI_TASK_QUEUE_PATH: Optional[str] = None
     # 待处理队列项 ``created_at`` 超过该秒数则丢弃；``0`` 表示不启用 TTL。
-    ADAMI_TASK_QUEUE_TTL_SEC: float = 0.0
+    ADAMI_TASK_QUEUE_TTL_SEC: float = 3600.0
+    # 后台扫描过期队列的间隔（秒）；``0`` 表示不启动扫描（仍会在 load/enqueue/save 时清扫）。
+    ADAMI_TASK_QUEUE_SWEEP_SEC: float = 60.0
+    # 启动后是否向 Telegram/Discord 推送「上次未完成队列」按钮（无用户输入时的主动消息）。
+    ADAMI_TASK_QUEUE_NOTIFY_ON_BOOT: bool = False
+    # 启动后是否向默认 chat 推送「已正常启动」；False 时仅在用户发消息后补发入口（避免 watchdog 重启刷屏）。
+    ADAMI_MESSENGER_NOTIFY_BOOT: bool = False
+    # Telegram polling 启动时丢弃停机期间积压的 getUpdates（避免重启后把旧消息当新请求处理）。
+    ADAMI_TELEGRAM_DROP_PENDING_UPDATES: bool = True
+    # 运行中任务 ``started_at`` 超过该秒数则视为过期（用于崩溃/重启恢复的自愈）；``0`` 表示不启用。
+    ADAMI_TASK_QUEUE_IN_PROGRESS_TTL_SEC: float = 900.0
     # 单 chat 最大待处理条数；超出时丢弃**最旧**待处理项以接纳新任务；``0`` 表示不限制。
     ADAMI_TASK_QUEUE_MAX_PER_CHAT: int = 200
     # 全实例待处理条数上限（所有 chat 之和）；超出时从最「长」队列头部丢弃；``0`` 表示不限制。
@@ -76,6 +86,11 @@ class Settings(BaseSettings):
     ADAMI_TASK_QUEUE_OVERFLOW_MODE: Literal["drop_oldest", "reject"] = "drop_oldest"
     # 可选：Fernet URL-safe base64 密钥（与 ``cryptography.fernet.Fernet`` 兼容）；设置后磁盘文件为加密封装。
     ADAMI_TASK_QUEUE_FERNET_KEY: Optional[str] = None
+
+    # ====================== DLQ（Dead Letter Queue） ======================
+    # 启动时清空一次 DLQ（用于从旧版本/错误配置中恢复，避免 DLQ 重放刷屏）。
+    # 注意：默认关闭，避免在你依赖 DLQ 恢复能力时误删待重放事件。
+    ADAMI_DLQ_CLEAR_ON_BOOT: bool = False
 
     # ====================== i18n（模块六）语言偏好 ======================
     # 兼容/键基准：保持 ``en``（与「界面默认简体」解耦；向导文案仍可能引用此字段）。
@@ -187,10 +202,16 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = "qwen3.5:9b"
     OLLAMA_HOST: str = "http://localhost:11434"
 
-    ADAMI_MLX_ENABLED: bool = True
+    # MLX can hard-crash (abort) at import time in some environments. Keep it opt-in.
+    ADAMI_MLX_ENABLED: bool = False
     ADAMI_MLX_MODEL_PATH: str = "mlx-community/Qwen3.5-9B-MLX-4bit"
     ADAMI_MLX_MAX_TOKENS: int = 2048
     ADAMI_MLX_TEMPERATURE: float = 0.3
+
+    # ====================== DP / 事件追踪（诊断用） ======================
+    # When enabled, DecisionProcessor + LifecycleManager emit per-event debug logs:
+    # event receipt, session-turn acquisition outcome, and reply dedupe decisions.
+    ADAMI_DP_EVENT_DEBUG: bool = False
 
     # ====================== GraphMemory（SQLite 图谱） ======================
     # 默认 ``{ADAMI_DATA_DIR}/graph_memory.db``；可由此项覆盖路径。
@@ -223,6 +244,9 @@ class Settings(BaseSettings):
     # Tracing on by default; span export defaults to **Console** (no Collector). Set ``ADAMI_OTEL_EXPORTER=otlp`` for gRPC.
     ADAMI_ENABLE_OBSERVABILITY: bool = True
     ADAMI_OTEL_EXPORTER: Literal["console", "otlp"] = "console"
+    # When True and ADAMI_OTEL_EXPORTER=console, allow ConsoleSpanExporter to write spans to stdout.
+    # Default False to avoid polluting interactive CLI output.
+    ADAMI_OTEL_CONSOLE_EXPORT_ENABLED: bool = False
     # Step 8 — OTLP policy: sampling (see ``observability/otel_export_policy.resolve_trace_sampler``).
     # When unset, ``OTEL_TRACES_SAMPLER`` / ``OTEL_TRACES_SAMPLER_ARG`` apply (OpenTelemetry spec).
     ADAMI_OTEL_TRACES_SAMPLER: Optional[str] = None
@@ -252,6 +276,8 @@ class Settings(BaseSettings):
     ADAMI_MCP_DENY_TOOLS: List[str] = []
     ADAMI_MCP_DOCKER_NETWORK_MODE: str = "bridge"
     ADAMI_MCP_TIMEOUT_SEC: float = 30.0
+    # WEB_SEARCH tool timeout budget (seconds). This is distinct from MCP timeout.
+    ADAMI_WEB_SEARCH_TIMEOUT_SEC: float = 30.0
     ADAMI_MCP_READ_ONLY_FS: bool = True
     ADAMI_MCP_MOUNT_ALLOWLIST: List[str] = []
 
@@ -265,6 +291,8 @@ class Settings(BaseSettings):
     # ====================== Sim / 可回放轨迹（模块三，EventBus NDJSON） ======================
     # 模块三总闸：False 时 trace / replay / webhook 相关能力应尽量短路（默认 True，不强制开启导出）。
     ADAMI_SIM_MODULE_ENABLED: bool = True
+    # CI / replay capture helper: when True, report providers and other integrations should avoid network calls.
+    ADAMI_SIM_OFFLINE: bool = False
     ADAMI_SIM_TRACE_EXPORT_ENABLED: bool = False
     ADAMI_SIM_TRACE_EXPORT_PATH: Optional[str] = None
     ADAMI_SIM_TRACE_MAX_QUEUE: int = 4096
@@ -422,7 +450,13 @@ class Settings(BaseSettings):
     ADAMI_IDLE_TRAIN_COOLDOWN_SEC: float = 14400.0  # min seconds between idle-triggered runs
 
     # ====================== 【并发 / HTTP 客户端 / 启动节律】 ======================
-    ADAMI_EVENT_CONSUMER_MAX_CONCURRENT: int = 10
+    # Max concurrent ``LifecycleManager`` consumer tasks processing ``system.events``.
+    # Values > 1 allow different chats and events to overlap; kept low by default because
+    # overlapping processing was a major source of duplicate replies / noisy CLI when
+    # paired with Milestone A queue semantics. Operators who need Telegram throughput
+    # across many chats may raise this explicitly.
+    ADAMI_CURIOSITY_QUEUE_MAX: int = 64
+    ADAMI_EVENT_CONSUMER_MAX_CONCURRENT: int = 1
     ADAMI_SUB_AGENT_MAX_CONCURRENT: int = 3
     ADAMI_ANS_SKILL_OPTIMIZE_MAX_PARALLEL: int = 2
     ADAMI_ROUTER_HTTP_TIMEOUT_SEC: float = 120.0
@@ -440,7 +474,11 @@ class Settings(BaseSettings):
     # CLI: hard timeout for a single user task to avoid indefinite session lock holds.
     # When exceeded, DecisionProcessor will cancel the task, release the session lock,
     # and continue with queued tasks.
-    ADAMI_CLI_TASK_HARD_TIMEOUT_SEC: float = 600.0
+    ADAMI_CLI_TASK_HARD_TIMEOUT_SEC: float = 900.0
+    # Telegram/Discord: hard timeout for a single user task to avoid indefinite session lock holds.
+    # When exceeded, DecisionProcessor will cancel the task, release the session lock,
+    # and continue with queued tasks.
+    ADAMI_TASK_HARD_TIMEOUT_SEC: float = 900.0
     ADAMI_MULTI_AGENT_ENGINEER_WAIT_SEC: int = 300
     ADAMI_MULTI_AGENT_DEFAULT_WAIT_SEC: int = 120
     ADAMI_MULTI_AGENT_MIN_WAIT_SEC: int = 120

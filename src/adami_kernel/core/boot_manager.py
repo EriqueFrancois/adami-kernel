@@ -356,6 +356,14 @@ class BootManager:
         # 9. 插件注册器统一初始化（所有注册的模块在此处已完成 initialize()，包括 MultiAgentOrchestrator 等）
         await self.components["registry"].initialize_all()
 
+        try:
+            from adami_kernel.orchestrator.diagnostics import SystemDiagnostics
+            from adami_kernel.orchestrator.diagnostics_view import ComponentsKernelView
+
+            SystemDiagnostics.perform_startup_check(ComponentsKernelView(self.components))
+        except Exception as e:
+            logger.warning(boot_t("boot.log.diag_failed", detail=str(e)))
+
         # 10. 神经节律与 GraphMemory
         asyncio.create_task(self.components["circadian_nerve"].start())
         if self.components.get("report_scheduler"):

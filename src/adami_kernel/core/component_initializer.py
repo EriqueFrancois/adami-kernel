@@ -7,7 +7,9 @@ import asyncio
 import logging
 from typing import Any, Dict, Optional
 
-from adami_kernel.cortex.evolution import EvolutionEngine
+from adami_kernel.cortex.curiosity_queue import CuriosityQueue
+from adami_kernel.cortex.endocrine import EndocrineSystem
+from adami_kernel.cortex.woofish import WoofishPredictor
 from adami_kernel.cortex.prompt import PromptBuilder
 from adami_kernel.cortex.reinforcement import rl_loop
 from adami_kernel.cortex.router import hybrid_router
@@ -81,6 +83,7 @@ try:
     from adami_kernel.cortex.claw_hub import ClawHub
 except ImportError:
     ClawHub = None
+from adami_kernel.cortex.evolution import EvolutionEngine
 try:
     from adami_kernel.cortex.meta_cortex import MetaCortex
 except ImportError:
@@ -155,6 +158,10 @@ class ComponentInitializer:
         components["rbac"] = RBACMatrix()
         components["memory"] = LayeredMemory()
         components["toolbox"] = ToolboxManager()
+        try:
+            components["toolbox"].set_event_publisher(components["bus"].publish)
+        except Exception:
+            pass
         components["ans"] = AutonomicNervousSystem(components["bus"].publish)
         components["subconscious"] = SubconsciousRAG()
         components["tls_vault"] = LocalSecretVault()
@@ -168,6 +175,10 @@ class ComponentInitializer:
 
         # ====================== Router 提前注入 ======================
         components["router"] = hybrid_router
+        try:
+            components["router"].set_event_publisher(components["bus"].publish)
+        except Exception:
+            pass
         if hasattr(components["toolbox"], "set_router"):
             components["toolbox"].set_router(components["router"])
             logger.debug("[Toolbox] router set on ToolboxManager")
@@ -203,9 +214,15 @@ class ComponentInitializer:
         )
         components["dlq"] = DeadLetterQueue() if DeadLetterQueue else None
         components["claw_hub"] = ClawHub(components["toolbox"]) if ClawHub else None
+        components["curiosity"] = CuriosityQueue()
+        components["endocrine"] = EndocrineSystem(limiter=components["limiter"])
+        components["woofish"] = WoofishPredictor()
         components["meta_cortex"] = (
             MetaCortex(
-                components["router"], components["memory"], components["evolution_engine"], None
+                components["router"],
+                components["memory"],
+                components["evolution_engine"],
+                components["curiosity"],
             )
             if MetaCortex
             else None
@@ -398,6 +415,7 @@ class ComponentInitializer:
             evolution_engine=components["evolution_engine"],
             meta_cortex=components["meta_cortex"],
             router=components["router"],
+            endocrine=components["endocrine"],
         )
         components["github_hunter"] = GitHubHunter(components["router"])
 
@@ -417,6 +435,7 @@ class ComponentInitializer:
             evolution_engine=components["evolution_engine"],
             memory=components["memory"],
             router=components["router"],
+            endocrine=components["endocrine"],
         )
 
         components["base_persona"] = boot_t("cjk_gate.default_base_persona")

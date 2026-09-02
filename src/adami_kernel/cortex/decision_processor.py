@@ -5,13 +5,14 @@
 # 修复目的：将 DecisionProcessor 对 kernel 的隐式依赖显式化为 KernelContext 契约
 
 import asyncio
+import contextlib
 import logging
 import os
 import re
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Set, Tuple, Union
 
 from pydantic import ValidationError
 from rich.console import Console
@@ -113,6 +114,77 @@ class DecisionProcessor:
                 logger.warning(_dcpu_t("dcpu.warn.skill_router_fail", e=e))
         # =================================================================================
 
+    @staticmethod
+    def _normalize_task_fingerprint(task_text: str) -> str:
+        t = " ".join(str(task_text or "").strip().split()).lower()
+        return t[:800] if t else ""
+
+    async def _send_reply_once_per_trace(
+        self,
+        *,
+        chat_id: str,
+        trace_id: str,
+        platform: str,
+        text: str,
+        kind: str = "fallback",
+        dedupe_task: Optional[str] = None,
+    ) -> bool:
+        """Send a reply at most once per (chat_id, trace_id, kind).
+
+        This is a safety net against duplicate event consumption or re-entrant fallback paths
+        that would otherwise spam low-value replies for a single user prompt.
+        """
+        try:
+            _lk = getattr(self.kernel, "_dp_reply_once_lock", None)
+            if _lk is None:
+                _lk = asyncio.Lock()
+                setattr(self.kernel, "_dp_reply_once_lock", _lk)
+            async with _lk:
+                seen: Set[Tuple[str, str, str]] = getattr(self.kernel, "_dp_reply_once", None)
+                if seen is None:
+                    seen = set()
+                    setattr(self.kernel, "_dp_reply_once", seen)
+                key = (str(chat_id), str(trace_id), str(kind))
+                if key in seen:
+                    if bool(getattr(settings, "ADAMI_DP_EVENT_DEBUG", False)):
+                        try:
+                            logger.info(
+                                "[dp.reply_once] skip duplicate key=%s",
+                                str(key),
+                            )
+                        except Exception:
+                            pass
+                    return False
+                seen.add(key)
+                # Queue auto-dispatch historically minted fresh trace_ids per pop; duplicate the same
+                # logical prompt needs idempotency tied to normalized task text as well.
+                if str(kind) == "direct_answer":
+                    fp = self._normalize_task_fingerprint(dedupe_task or "")
+                    if fp:
+                        fp_key = ("__direct_fp__", str(chat_id), fp)
+                        if fp_key in seen:
+                            if bool(getattr(settings, "ADAMI_DP_EVENT_DEBUG", False)):
+                                try:
+                                    logger.info(
+                                        "[dp.reply_once] skip duplicate fp_key=%s",
+                                        str(fp_key),
+                                    )
+                                except Exception:
+                                    pass
+                            return False
+                        seen.add(fp_key)
+        except Exception:
+            # If tracking fails, still send the reply (best-effort).
+            pass
+        await self.kernel._send_reply(
+            chat_id,
+            text,
+            platform=platform,
+            trace_id=str(trace_id),
+            force_trace_footer=(str(kind) == "direct_answer"),
+        )
+        return True
+
     async def _update_ui(self, chat_id: str, platform: str, thought: str):
         try:
             if platform == "telegram" and getattr(self.kernel, "telegram_nerve", None):
@@ -121,6 +193,23 @@ class DecisionProcessor:
                 await self.kernel.discord_nerve.update_ui_thought(chat_id, thought)
         except Exception as e:
             logger.warning(_dcpu_t("dcpu.warn.ui_thought", e=e))
+
+    def _throttle_should_send(self, chat_id: str, *, kind: str, window_sec: float) -> bool:
+        """Best-effort cross-platform spam suppression for low-signal system replies."""
+        try:
+            now = time.time()
+            m = getattr(self.kernel, "_dp_throttle", None)
+            if m is None:
+                m = {}
+                setattr(self.kernel, "_dp_throttle", m)
+            key = (str(chat_id), str(kind))
+            last = float(m.get(key) or 0.0)
+            if last > 0 and (now - last) < float(window_sec):
+                return False
+            m[key] = now
+            return True
+        except Exception:
+            return True
 
     def _safe_serialize(self, obj: Any) -> Any:
         if isinstance(obj, (dict, list, tuple)):
@@ -193,19 +282,28 @@ class DecisionProcessor:
         err_code: Optional[str] = None
         ok = True
         t0 = time.perf_counter()
+        from adami_kernel.observability.tool_call_context import reset_tool_trace_id, set_tool_trace_id
+
+        token = set_tool_trace_id(str(trace_id))
         try:
             if action in ("ANALYZE_IMAGE", "PARSE_DOCUMENT"):
                 if action == "ANALYZE_IMAGE":
                     image_b64 = args.get("image_base64") or ""
                     if image_b64 and hasattr(self.kernel.toolbox, "multi_modal"):
-                        res = await self.kernel.toolbox.multi_modal.process_input(
-                            "photo", {"image_base64": image_b64}
+                        res = await self.kernel.toolbox.process_multimodal(
+                            "photo",
+                            {"image_base64": image_b64},
+                            trace_id=str(trace_id),
+                            timeout_sec=45.0,
                         )
                 elif action == "PARSE_DOCUMENT":
                     file_path = args.get("file_path") or ""
                     if file_path and hasattr(self.kernel.toolbox, "multi_modal"):
-                        res = await self.kernel.toolbox.multi_modal.process_input(
-                            "document", {"file_path": file_path}
+                        res = await self.kernel.toolbox.process_multimodal(
+                            "document",
+                            {"file_path": file_path},
+                            trace_id=str(trace_id),
+                            timeout_sec=float(getattr(settings, "ADAMI_DOCUMENT_MARKDOWN_TIMEOUT_SEC", 45.0)),
                         )
             elif action in ("CREATE_NEW_SKILL", "UPDATE_SKILL"):
                 skill_name = args.get("skill_name") or args.get("name") or "TEMP_SKILL"
@@ -226,13 +324,58 @@ class DecisionProcessor:
                     )
             elif action == "EXECUTE_COMMAND":
                 cmd = args.get("command", "")
+                timeout_sec = args.get("timeout_sec", None)
+                try:
+                    timeout_sec_f = float(timeout_sec) if timeout_sec is not None else 30.0
+                except (TypeError, ValueError):
+                    timeout_sec_f = 30.0
                 res = await self.kernel.immunity.run_with_timeout(
-                    self.kernel.toolbox.execute_command(str(cmd)),
-                    timeout=settings.ADAMI_SKILL_TIMEOUT,
+                    self.kernel.toolbox.execute_command(
+                        str(cmd), timeout=timeout_sec_f, trace_id=str(trace_id)
+                    ),
+                    timeout=max(float(settings.ADAMI_SKILL_TIMEOUT), timeout_sec_f + 1.0),
                 )
+
+                # UX: timeout must be user-visible (and replayable).
+                try:
+                    exit_code = None
+                    stderr = ""
+                    if isinstance(res, dict):
+                        exit_code = res.get("exit_code")
+                        stderr = str(res.get("stderr") or "")
+                    if exit_code == -1 and "timed out" in stderr.lower():
+                        from adami_kernel.i18n.request_locale import get_request_locale
+
+                        eff_loc2 = get_request_locale() or settings.effective_ui_default_locale()
+                        msg = i18n_t(
+                            "dp.tool.timeout_reply",
+                            locale=eff_loc2,
+                            timeout_sec=f"{timeout_sec_f:g}",
+                            trace_id=str(trace_id),
+                        )
+                        await self.kernel._send_reply(chat_id, msg, platform=platform)
+                        try:
+                            await self.kernel.bus.publish(
+                                AdamiEvent(
+                                    trace_id=str(trace_id),
+                                    source_module="nexus.reply",
+                                    target_topic="system.events",
+                                    priority=EventPriority.NORMAL,
+                                    payload={"event_type": "REPLY", "text": str(msg), "trace_id": str(trace_id)},
+                                )
+                            )
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
             elif action == "WEB_SEARCH":
                 query = args.get("query", args.get("keywords", task_text))
-                res = await self.kernel.toolbox.web.web_search(query)
+                res = await self.kernel.toolbox.web_search(
+                    str(query or ""),
+                    max_results=int(args.get("max_results") or 5),
+                    trace_id=str(trace_id),
+                    timeout_sec=float(getattr(settings, "ADAMI_WEB_SEARCH_TIMEOUT_SEC", 30.0)),
+                )
             elif action == "SEND_TELEGRAM":
                 text = args.get("text", "")
                 if self.kernel.telegram_nerve and chat_id:
@@ -259,6 +402,10 @@ class DecisionProcessor:
             err_code = type(e).__name__
             raise
         finally:
+            try:
+                reset_tool_trace_id(token)
+            except Exception:
+                pass
             if action != "TASK_COMPLETE":
                 latency_ms = (time.perf_counter() - t0) * 1000
                 meta = infer_tool_audit_meta(self.kernel.evolution_engine, str(action))
@@ -405,19 +552,189 @@ class DecisionProcessor:
             },
         ) as span:
             task_text = event.payload.get("task", "").strip()
+            if bool(getattr(settings, "ADAMI_DP_EVENT_DEBUG", False)):
+                try:
+                    logger.info(
+                        "[dp.process] enter trace_id=%s src=%s chat_id=%s task=%r",
+                        str(getattr(event, "trace_id", "") or ""),
+                        str(getattr(event, "source_module", "") or ""),
+                        str(chat_id),
+                        str(task_text),
+                    )
+                except Exception:
+                    pass
+
+            # ------------------------------------------------------------------
+            # Do not re-enter the main intent-router for internal bus echoes.
+            # - `cortex.feedback` is published by the slow-brain path; the bus fan-in
+            #   would otherwise run `route_task` again on the same user text (duplicate
+            #   Hybrid/LLM + duplicate user-visible replies). No other module subscribes
+            #   to this stream for now.
+            # - `nexus.reply` REPLY records (trace export) are not user prompts.
+            # ------------------------------------------------------------------
+            _srcm = str(getattr(event, "source_module", "") or "")
+            if _srcm == "cortex.feedback":
+                return
+            if _srcm == "nexus.reply":
+                return
 
             loc_token = attach_request_locale(effective_locale)
             try:
                 platform = self._determine_platform(event.source_module)
-                await self._update_ui(chat_id, platform, i18n_t("dp.ui.thinking_stream"))
-                # If the session is busy, enqueue instead of dropping.
-                lock = self.kernel.session_locks.get(chat_id)
-                if lock is not None and getattr(lock, "locked", None) and lock.locked():
+
+                # Milestone A: queue health commands are handled locally and should not be queued
+                # behind long-running tasks.
+                task_low = (task_text or "").strip().lower()
+                if task_low.startswith("/queue"):
+                    tq_local = getattr(self.kernel, "task_queue", None)
+                    bus_local = getattr(self.kernel, "bus", None)
+
+                    async def _emit_reply_for_trace(text: str) -> None:
+                        if not bool(getattr(settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", False)):
+                            return
+                        if bus_local is None:
+                            return
+                        try:
+                            await bus_local.publish(
+                                AdamiEvent(
+                                    trace_id=str(event.trace_id),
+                                    source_module="nexus.reply",
+                                    target_topic="system.events",
+                                    priority=EventPriority.NORMAL,
+                                    payload={"event_type": "REPLY", "text": str(text)},
+                                )
+                            )
+                        except Exception:
+                            return
+
+                    if task_low.startswith("/queue status"):
+                        pending_n = 0
+                        in_progress = False
+                        pending_oldest_sec = 0
+                        in_progress_sec = 0
+                        try:
+                            now = time.time()
+                            pending = tq_local.list_pending(chat_id) if tq_local is not None else []
+                            pending_n = len(pending)
+                            if pending:
+                                oldest = min(float(x.created_at) for x in pending if hasattr(x, "created_at"))
+                                pending_oldest_sec = max(0, int(now - float(oldest)))
+                            in_progress = (
+                                tq_local.get_in_progress(chat_id) is not None
+                                if tq_local is not None
+                                else False
+                            )
+                            ip = tq_local.get_in_progress(chat_id) if tq_local is not None else None
+                            if ip is not None and hasattr(ip, "started_at"):
+                                in_progress_sec = max(0, int(now - float(ip.started_at)))
+                        except Exception:
+                            pending_n = 0
+                            in_progress = False
+                            pending_oldest_sec = 0
+                            in_progress_sec = 0
+                        msg = i18n_t(
+                            "dp.queue.status_reply",
+                            locale=effective_locale,
+                            pending=int(pending_n),
+                            in_progress=(1 if in_progress else 0),
+                            pending_oldest_sec=int(pending_oldest_sec),
+                            in_progress_sec=int(in_progress_sec),
+                        )
+                        await self.kernel._send_reply(chat_id, msg, platform=platform)
+                        await _emit_reply_for_trace(msg)
+                        return
+
+                    if task_low.startswith("/queue discard"):
+                        dropped = 0
+                        had_ip = False
+                        try:
+                            if tq_local is not None:
+                                dropped, had_ip = tq_local.discard_all(chat_id)
+                        except Exception:
+                            dropped, had_ip = 0, False
+                        msg = i18n_t(
+                            "dp.queue.discard_reply",
+                            locale=effective_locale,
+                            pending=int(dropped),
+                            in_progress=(1 if had_ip else 0),
+                        )
+                        await self.kernel._send_reply(chat_id, msg, platform=platform)
+                        await _emit_reply_for_trace(msg)
+                        return
+
+                    if task_low.startswith("/queue cancel"):
+                        ok = False
+                        try:
+                            cancel_fn = getattr(self.kernel, "cancel_current_task_for_chat", None)
+                            if callable(cancel_fn):
+                                ok = bool(cancel_fn(chat_id, platform))
+                        except Exception:
+                            ok = False
+                        msg = i18n_t(
+                            "dp.queue.cancel_reply" if ok else "dp.queue.cancel_none",
+                            locale=effective_locale,
+                        )
+                        await self.kernel._send_reply(chat_id, msg, platform=platform)
+                        await _emit_reply_for_trace(msg)
+                        return
+
+                    if task_low.startswith("/queue export-trace"):
+                        trace_id = ""
+                        try:
+                            trace_id = str(
+                                (self.kernel.active_sessions.get(chat_id) or {}).get("trace_id") or ""
+                            )
+                        except Exception:
+                            trace_id = ""
+                        if trace_id:
+                            msg = i18n_t(
+                                "dp.queue.export_trace_reply",
+                                locale=effective_locale,
+                                trace_id=str(trace_id),
+                            )
+                        else:
+                            msg = i18n_t(
+                                "dp.queue.export_trace_none",
+                                locale=effective_locale,
+                            )
+                        await self.kernel._send_reply(chat_id, msg, platform=platform)
+                        await _emit_reply_for_trace(msg)
+                        return
+                # ------------------------------------------------------------------
+                # Per-chat session turn: must be atomic vs. ``lock.locked()`` TOCTOU.
+                # LifecycleManager may run up to ``ADAMI_EVENT_CONSUMER_MAX_CONCURRENT``
+                # ``process()`` tasks; without a meta-lock, two tasks for the same
+                # ``chat_id`` can both observe an unlocked session before either acquires,
+                # causing duplicate intent-router / Hybrid work and duplicate replies.
+                # ------------------------------------------------------------------
+                if not await self._try_acquire_session_turn(chat_id, str(event.trace_id)):
+                    if bool(getattr(settings, "ADAMI_DP_EVENT_DEBUG", False)):
+                        try:
+                            logger.info(
+                                "[dp.process] session_busy trace_id=%s chat_id=%s",
+                                str(getattr(event, "trace_id", "") or ""),
+                                str(chat_id),
+                            )
+                        except Exception:
+                            pass
                     tq = getattr(self.kernel, "task_queue", None)
                     queued_pos: int | None = None
                     queued_total: int | None = None
                     if tq is not None and task_text:
                         try:
+                            pend = tq.list_pending(chat_id)
+                            if any(
+                                str(getattr(x, "task", "") or "").strip() == task_text.strip()
+                                for x in pend
+                            ):
+                                msg_busy = i18n_t("dp.session.busy", locale=effective_locale)
+                                if self._throttle_should_send(
+                                    chat_id, kind="busy", window_sec=3.0
+                                ):
+                                    await self.kernel._send_reply(
+                                        chat_id, msg_busy, platform=platform
+                                    )
+                                return
                             # Queue position includes the currently running task as position 1.
                             before = len(tq.list_pending(chat_id))
                             enq = tq.enqueue(
@@ -425,38 +742,90 @@ class DecisionProcessor:
                                 task=task_text,
                                 source_module=str(event.source_module),
                                 platform=str(platform),
+                                trace_id=str(event.trace_id),
                             )
                             if enq is None:
-                                await self.kernel._send_reply(
-                                    chat_id,
-                                    i18n_t("dp.session.queue_capped", locale=effective_locale),
-                                    platform=platform,
+                                msg_cap = i18n_t(
+                                    "dp.session.queue_capped", locale=effective_locale
                                 )
+                                if self._throttle_should_send(
+                                    chat_id, kind="queue_capped", window_sec=5.0
+                                ):
+                                    await self.kernel._send_reply(
+                                        chat_id, msg_cap, platform=platform
+                                    )
                                 return
                             queued_pos = before + 2
                             queued_total = before + 2
                         except Exception:
                             pass
                     if queued_pos is None:
+                        msg_busy = i18n_t("dp.session.busy", locale=effective_locale)
+                        if self._throttle_should_send(chat_id, kind="busy", window_sec=3.0):
+                            await self.kernel._send_reply(
+                                chat_id,
+                                msg_busy,
+                                platform=platform,
+                            )
+                        # Sim trace export: record user-visible reply in golden traces.
+                        if bool(getattr(settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", False)):
+                            bus_sim = getattr(self.kernel, "bus", None)
+                            if bus_sim is not None:
+                                try:
+                                    await bus_sim.publish(
+                                        AdamiEvent(
+                                            trace_id=str(event.trace_id),
+                                            source_module="nexus.reply",
+                                            target_topic="system.events",
+                                            priority=EventPriority.NORMAL,
+                                            payload={"event_type": "REPLY", "text": msg_busy},
+                                        )
+                                    )
+                                except Exception:
+                                    pass
+                        return
+                    msg_q = i18n_t(
+                        "dp.session.busy_queued",
+                        locale=effective_locale,
+                        trace_id=str(event.trace_id),
+                        pos=int(queued_pos),
+                        total=int(queued_total or queued_pos),
+                    )
+                    if self._throttle_should_send(
+                        chat_id, kind="busy_queued", window_sec=2.0
+                    ):
                         await self.kernel._send_reply(
                             chat_id,
-                            i18n_t("dp.session.busy", locale=effective_locale),
+                            msg_q,
                             platform=platform,
                         )
-                        return
-                    await self.kernel._send_reply(
-                        chat_id,
-                        i18n_t(
-                            "dp.session.busy_queued",
-                            locale=effective_locale,
-                            pos=int(queued_pos),
-                            total=int(queued_total or queued_pos),
-                        ),
-                        platform=platform,
-                    )
+                    if bool(getattr(settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", False)):
+                        bus_sim = getattr(self.kernel, "bus", None)
+                        if bus_sim is not None:
+                            try:
+                                await bus_sim.publish(
+                                    AdamiEvent(
+                                        trace_id=str(event.trace_id),
+                                        source_module="nexus.reply",
+                                        target_topic="system.events",
+                                        priority=EventPriority.NORMAL,
+                                        payload={"event_type": "REPLY", "text": msg_q},
+                                    )
+                                )
+                            except Exception:
+                                pass
                     return
 
-                await self._acquire_session_lock(chat_id, event.trace_id)
+                if bool(getattr(settings, "ADAMI_DP_EVENT_DEBUG", False)):
+                    try:
+                        logger.info(
+                            "[dp.process] session_acquired trace_id=%s chat_id=%s",
+                            str(getattr(event, "trace_id", "") or ""),
+                            str(chat_id),
+                        )
+                    except Exception:
+                        pass
+                await self._update_ui(chat_id, platform, i18n_t("dp.ui.thinking_stream"))
                 # Mark this as in-progress for restart recovery.
                 tq2 = getattr(self.kernel, "task_queue", None)
                 if tq2 is not None and task_text:
@@ -471,6 +840,48 @@ class DecisionProcessor:
                     except Exception:
                         pass
 
+                # Lifecycle evidence: emit a single "started" message that includes trace_id,
+                # so all ports (CLI/Telegram/Discord) have a user-visible correlation handle.
+                try:
+                    msg_started = i18n_t(
+                        "dp.task.started",
+                        locale=effective_locale,
+                        trace_id=str(event.trace_id),
+                    )
+                    await self._send_reply_once_per_trace(
+                        chat_id=chat_id,
+                        trace_id=str(event.trace_id),
+                        platform=platform,
+                        text=msg_started,
+                        kind="started",
+                    )
+                    if bool(getattr(settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", False)):
+                        bus_sim = getattr(self.kernel, "bus", None)
+                        if bus_sim is not None:
+                            with contextlib.suppress(Exception):
+                                await bus_sim.publish(
+                                    AdamiEvent(
+                                        trace_id=str(event.trace_id),
+                                        source_module="nexus.reply",
+                                        target_topic="system.events",
+                                        priority=EventPriority.NORMAL,
+                                        payload={"event_type": "REPLY", "text": msg_started},
+                                    )
+                                )
+                except Exception:
+                    pass
+
+                # Track the running task for `/queue cancel` (works both under LifecycleManager consumer and
+                # direct `dp.process(...)` calls used by golden trace capture).
+                try:
+                    if not hasattr(self.kernel, "_chat_running_tasks"):
+                        self.kernel._chat_running_tasks = {}  # type: ignore[attr-defined]
+                    cur = asyncio.current_task()
+                    if cur is not None:
+                        self.kernel._chat_running_tasks[str(chat_id)] = cur  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+
                 eid = str(event.trace_id)
                 get_experience_sink().begin_episode(
                     eid,
@@ -480,6 +891,12 @@ class DecisionProcessor:
                     platform=platform,
                 )
                 episode_outcome = "success"
+                from adami_kernel.observability.timeout_budget import (
+                    BudgetExceededError,
+                    reset_task_timeout_budget,
+                    set_task_timeout_budget,
+                )
+                budget_token = None
 
                 try:
 
@@ -487,6 +904,14 @@ class DecisionProcessor:
                         self._check_circuit_breaker(
                             event.payload.get("loop_depth", 0), event.trace_id
                         )
+
+                        from adami_kernel.integration.sim.dp_offline_scenarios import (
+                            try_handle_offline_sim,
+                        )
+                        if await try_handle_offline_sim(
+                            self, event, task_text, chat_id, platform, effective_locale
+                        ):
+                            return
 
                         if self._handle_early_skill_creation(
                             task_text, chat_id, platform, event.trace_id
@@ -509,12 +934,12 @@ class DecisionProcessor:
                         action_intent, args_intent = self._detect_multimodal_intent(event.payload)
                         if action_intent:
                             await self._dispatch_multimodal_task(
-                                action_intent,
-                                args_intent,
-                                chat_id,
-                                platform,
-                                event.trace_id,
-                                task_text,
+                                    action_intent,
+                                    args_intent,
+                                    chat_id,
+                                    platform,
+                                    event.trace_id,
+                                    task_text,
                             )
                             _decision_reward(str(event.trace_id), 1.0, {"intent": "multimodal"})
                             return
@@ -528,58 +953,224 @@ class DecisionProcessor:
                                 data, task_text, chat_id, platform, event.trace_id
                             )
                         elif tag == "COMPLEX_TASK":
-                            await self._dispatch_complex_task(
-                                task_text,
-                                chat_id,
-                                platform,
-                                event.trace_id,
-                                router_data=data,
-                                trace_span=span,
-                            )
+                                # Lifecycle contract: "running" evidence (at least once) before long work.
+                                try:
+                                    msg_running = i18n_t(
+                                        "dp.task.running",
+                                        locale=effective_locale,
+                                        trace_id=str(event.trace_id),
+                                    )
+                                    await self._send_reply_once_per_trace(
+                                        chat_id=chat_id,
+                                        trace_id=str(event.trace_id),
+                                        platform=platform,
+                                        text=msg_running,
+                                        kind="running",
+                                    )
+                                    if bool(getattr(settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", False)):
+                                        bus_sim = getattr(self.kernel, "bus", None)
+                                        if bus_sim is not None:
+                                            with contextlib.suppress(Exception):
+                                                await bus_sim.publish(
+                                                    AdamiEvent(
+                                                        trace_id=str(event.trace_id),
+                                                        source_module="nexus.reply",
+                                                        target_topic="system.events",
+                                                        priority=EventPriority.NORMAL,
+                                                        payload={"event_type": "REPLY", "text": msg_running},
+                                                    )
+                                                )
+                                except Exception:
+                                    pass
+                                await self._dispatch_complex_task(
+                                    task_text,
+                                    chat_id,
+                                    platform,
+                                    event.trace_id,
+                                    router_data=data,
+                                    trace_span=span,
+                                )
                         else:
                             await self._dispatch_slow_brain(task_text, event, chat_id, platform)
 
                         _decision_reward(str(event.trace_id), 1.0, {"intent": tag})
 
                     hard_timeout = None
-                    if str(platform).lower() == "cli":
-                        try:
+                    try:
+                        if str(platform).lower() == "cli":
                             hard_timeout = float(
-                                getattr(settings, "ADAMI_CLI_TASK_HARD_TIMEOUT_SEC", 0.0)
+                                getattr(settings, "ADAMI_CLI_TASK_HARD_TIMEOUT_SEC", 0.0) or 0.0
                             )
-                        except Exception:
-                            hard_timeout = None
+                        else:
+                            hard_timeout = float(
+                                getattr(settings, "ADAMI_TASK_HARD_TIMEOUT_SEC", 0.0) or 0.0
+                            )
+                    except Exception:
+                        hard_timeout = None
                     if hard_timeout is not None and hard_timeout > 0:
+                        budget_token = set_task_timeout_budget(
+                            str(event.trace_id), timeout_sec=float(hard_timeout)
+                        )
                         await asyncio.wait_for(_run_one_task(), timeout=hard_timeout)
                     else:
                         await _run_one_task()
+                    # Lifecycle contract: ensure a terminal "done" evidence message contains trace_id,
+                    # even when the main result reply is produced elsewhere (DIRECT_ANSWER / planner / workflow).
+                    try:
+                        footer_sent = False
+                        try:
+                            sent = getattr(self.kernel, "_trace_footer_sent", None)
+                            footer_sent = bool(
+                                sent is not None and (str(chat_id), str(event.trace_id)) in sent
+                            )
+                        except Exception:
+                            footer_sent = False
+                        if footer_sent:
+                            # Final result already contains a trace footer; avoid adding an extra done line.
+                            pass
+                        else:
+                            msg_done = i18n_t(
+                                "dp.task.done",
+                                locale=effective_locale,
+                                trace_id=str(event.trace_id),
+                            )
+                            await self._send_reply_once_per_trace(
+                                chat_id=chat_id,
+                                trace_id=str(event.trace_id),
+                                platform=platform,
+                                text=msg_done,
+                                kind="done",
+                            )
+                            if bool(getattr(settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", False)):
+                                bus_sim = getattr(self.kernel, "bus", None)
+                                if bus_sim is not None:
+                                    with contextlib.suppress(Exception):
+                                        await bus_sim.publish(
+                                            AdamiEvent(
+                                                trace_id=str(event.trace_id),
+                                                source_module="nexus.reply",
+                                                target_topic="system.events",
+                                                priority=EventPriority.NORMAL,
+                                                payload={"event_type": "REPLY", "text": msg_done},
+                                            )
+                                        )
+                    except Exception:
+                        pass
 
                 except ResourceExhausted as e:
                     episode_outcome = "rate_limited"
                     await self._handle_rate_limit(chat_id, platform, e)
                     _decision_reward(str(event.trace_id), 0.0, {"error": "rate_limit"})
+                except BudgetExceededError:
+                    episode_outcome = "timeout_budget_exceeded"
+                    msg_budget = i18n_t(
+                        "dp.task.timeout_budget_exceeded_released",
+                        locale=effective_locale,
+                        trace_id=str(event.trace_id),
+                    )
+                    await self._send_reply_once_per_trace(
+                        chat_id=chat_id,
+                        trace_id=str(event.trace_id),
+                        platform=platform,
+                        text=msg_budget,
+                        kind="budget_exceeded",
+                    )
+                    if bool(getattr(settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", False)):
+                        bus_sim = getattr(self.kernel, "bus", None)
+                        if bus_sim is not None:
+                            with contextlib.suppress(Exception):
+                                await bus_sim.publish(
+                                    AdamiEvent(
+                                        trace_id=str(event.trace_id),
+                                        source_module="nexus.reply",
+                                        target_topic="system.events",
+                                        priority=EventPriority.NORMAL,
+                                        payload={"event_type": "REPLY", "text": msg_budget},
+                                    )
+                                )
                 except asyncio.TimeoutError:
                     episode_outcome = "timeout"
-                    await self.kernel._send_reply(
-                        chat_id,
-                        i18n_t(
-                            "dp.task.hard_timeout_released",
-                            locale=effective_locale,
-                            sec=int(hard_timeout or 0),
-                        ),
-                        platform=platform,
+                    msg_timeout = i18n_t(
+                        "dp.task.hard_timeout_released",
+                        locale=effective_locale,
+                        trace_id=str(event.trace_id),
+                        sec=int(hard_timeout or 0),
                     )
+                    await self._send_reply_once_per_trace(
+                        chat_id=chat_id,
+                        trace_id=str(event.trace_id),
+                        platform=platform,
+                        text=msg_timeout,
+                        kind="hard_timeout",
+                    )
+                    if bool(getattr(settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", False)):
+                        bus_sim = getattr(self.kernel, "bus", None)
+                        if bus_sim is not None:
+                            try:
+                                await bus_sim.publish(
+                                    AdamiEvent(
+                                        trace_id=str(event.trace_id),
+                                        source_module="nexus.reply",
+                                        target_topic="system.events",
+                                        priority=EventPriority.NORMAL,
+                                        payload={"event_type": "REPLY", "text": msg_timeout},
+                                    )
+                                )
+                            except Exception:
+                                pass
                     _decision_reward(str(event.trace_id), 0.0, {"error": "timeout"})
                 except TaskFailedException:
                     episode_outcome = "task_failed"
+                    msg_failed = i18n_t("dp.circuit.user", trace_id=str(event.trace_id))
                     await self.kernel._send_reply(
                         chat_id,
-                        i18n_t("dp.circuit.user", trace_id=str(event.trace_id)),
+                        msg_failed,
                         platform=platform,
+                    )
+                    if bool(getattr(settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", False)):
+                        bus_sim = getattr(self.kernel, "bus", None)
+                        if bus_sim is not None:
+                            with contextlib.suppress(Exception):
+                                await bus_sim.publish(
+                                    AdamiEvent(
+                                        trace_id=str(event.trace_id),
+                                        source_module="nexus.reply",
+                                        target_topic="system.events",
+                                        priority=EventPriority.NORMAL,
+                                        payload={"event_type": "REPLY", "text": msg_failed},
+                                    )
                     )
                     _decision_reward(str(event.trace_id), 0.0, {"error": "task_failed"})
                 except asyncio.CancelledError:
                     episode_outcome = "cancelled"
+                    try:
+                        msg_cancelled = i18n_t(
+                            "dp.queue.cancelled_reply",
+                            locale=effective_locale,
+                            trace_id=str(event.trace_id),
+                        )
+                        await self._send_reply_once_per_trace(
+                            chat_id=chat_id,
+                            trace_id=str(event.trace_id),
+                            platform=platform,
+                            text=msg_cancelled,
+                            kind="cancelled",
+                        )
+                        if bool(getattr(settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", False)):
+                            bus_sim = getattr(self.kernel, "bus", None)
+                            if bus_sim is not None:
+                                with contextlib.suppress(Exception):
+                                    await bus_sim.publish(
+                                        AdamiEvent(
+                                            trace_id=str(event.trace_id),
+                                            source_module="nexus.reply",
+                                            target_topic="system.events",
+                                            priority=EventPriority.NORMAL,
+                                            payload={"event_type": "REPLY", "text": msg_cancelled},
+                                        )
+                                    )
+                    except Exception:
+                        pass
                     raise
                 except Exception as e:
                     episode_outcome = "fatal"
@@ -587,6 +1178,9 @@ class DecisionProcessor:
                     _decision_reward(str(event.trace_id), 0.0, {"error": "fatal"})
                 finally:
                     get_experience_sink().end_episode(eid, episode_outcome, pop_context=True)
+                    if budget_token is not None:
+                        with contextlib.suppress(Exception):
+                            reset_task_timeout_budget(budget_token)
                     self._append_stop_audit_daily(task_text, chat_id, platform, str(event.trace_id))
                     self._write_session_export_log(
                         task_text, chat_id, platform, str(event.trace_id)
@@ -604,14 +1198,42 @@ class DecisionProcessor:
             return "telegram"
         return "telegram"
 
-    async def _acquire_session_lock(self, chat_id: str, trace_id: str):
+    async def _try_acquire_session_turn(self, chat_id: str, trace_id: str) -> bool:
+        """Atomically take the per-chat session lock when it is free.
+
+        ``LifecycleManager`` may run multiple ``process()`` coroutines concurrently
+        (``ADAMI_EVENT_CONSUMER_MAX_CONCURRENT``).  A plain ``if session_lock.locked()``
+        before a later ``acquire()`` is a TOCTOU race: two tasks can both see the
+        session as free.  A per-chat *meta* lock serializes the check+acquire.
+        """
         if chat_id not in self.kernel.session_locks:
             self.kernel.session_locks[chat_id] = asyncio.Lock()
-        if self.kernel.session_locks[chat_id].locked():
-            await self.kernel._send_reply(chat_id, i18n_t("dp.session.busy"), platform="telegram")
+        meta_map = getattr(self.kernel, "_dp_session_turn_meta_locks", None)
+        if meta_map is None:
+            self.kernel._dp_session_turn_meta_locks = {}  # type: ignore[attr-defined]
+            meta_map = self.kernel._dp_session_turn_meta_locks
+        if chat_id not in meta_map:
+            meta_map[chat_id] = asyncio.Lock()
+        meta = meta_map[chat_id]
+        main = self.kernel.session_locks[chat_id]
+        async with meta:
+            if main.locked():
+                return False
+            await main.acquire()
+            self.kernel.active_sessions[chat_id] = {
+                "trace_id": trace_id,
+                "started_at": time.time(),
+            }
+        return True
+
+    async def _acquire_session_lock(self, chat_id: str, trace_id: str, platform: str) -> None:
+        """Tests and legacy call sites: same as a session turn, with user-visible *busy* on failure."""
+        ok = await self._try_acquire_session_turn(chat_id, trace_id)
+        if not ok:
+            await self.kernel._send_reply(
+                chat_id, i18n_t("dp.session.busy"), platform=platform
+            )
             raise asyncio.CancelledError("session locked")
-        await self.kernel.session_locks[chat_id].acquire()
-        self.kernel.active_sessions[chat_id] = {"trace_id": trace_id, "started_at": time.time()}
 
     def _check_circuit_breaker(self, loop_depth: int, trace_id: str) -> None:
         if loop_depth > 3:
@@ -652,6 +1274,8 @@ class DecisionProcessor:
                 if plan_result is None:
                     logger.warning(_dcpu_t("dcpu.warn.planner_none"))
                     parsed = {}
+                elif isinstance(plan_result, dict):
+                    parsed = extract_json_from_llm_output(str(plan_result.get("text") or "")) or {}
                 elif isinstance(plan_result, str):
                     # ==== 修复点：增加 or {}，确保即使 JSON 提取失败也赋予空字典 ====
                     parsed = extract_json_from_llm_output(plan_result) or {}
@@ -720,7 +1344,14 @@ class DecisionProcessor:
 
                 if platform == "cli":
                     plan_result = self._format_cli_result(final_result)
-                await self.kernel._send_reply(chat_id, plan_result, platform=platform)
+                await self.kernel._send_reply(
+                    chat_id,
+                    plan_result,
+                    platform=platform,
+                    trace_id=str(trace_id),
+                workflow_id=None,
+                    force_trace_footer=True,
+                )
 
                 if platform == "cli":
                     try:
@@ -812,7 +1443,14 @@ class DecisionProcessor:
             if data and str(data).strip()
             else i18n_t("dp.direct_answer.fast_brain_default")
         )
-        await self.kernel._send_reply(chat_id, content, platform=platform)
+        await self._send_reply_once_per_trace(
+            chat_id=chat_id,
+            trace_id=str(trace_id),
+            platform=platform,
+            text=content,
+            kind="direct_answer",
+            dedupe_task=task_text,
+        )
 
     async def _maybe_route_intent_adaptive(
         self,
@@ -1062,7 +1700,21 @@ class DecisionProcessor:
             plan_result = await self.kernel.planner.plan_and_execute(**plan_kw)
             if platform == "cli":
                 plan_result = self._format_cli_result(plan_result)
-            await self.kernel._send_reply(chat_id, plan_result, platform=platform)
+            wid = None
+            plan_text = plan_result
+            # Structured planner results can carry workflow_id explicitly to avoid text parsing.
+            if isinstance(plan_result, dict):
+                wid = str(plan_result.get("workflow_id") or "") or None
+                if "text" in plan_result and isinstance(plan_result.get("text"), str):
+                    plan_text = str(plan_result.get("text") or "")
+            await self.kernel._send_reply(
+                chat_id,
+                plan_text,
+                platform=platform,
+                trace_id=str(trace_id),
+                workflow_id=wid,
+                force_trace_footer=True,
+            )
 
     async def _dispatch_slow_brain(
         self, task_text: str, event: AdamiEvent, chat_id: str, platform: str
@@ -1109,7 +1761,11 @@ class DecisionProcessor:
         res = await self._execute_action(action, args, chat_id, platform, event.trace_id, task_text)
 
         if res == "TASK_COMPLETE":
-            await self.kernel._send_reply(chat_id, i18n_t("dp.task.completed"), platform=platform)
+            await self.kernel._send_reply(
+                chat_id,
+                i18n_t("dp.task.completed", trace_id=str(event.trace_id), locale=effective_locale),
+                platform=platform,
+            )
             return
 
         if res and action != "THINK":
@@ -1183,6 +1839,15 @@ class DecisionProcessor:
         if lock and lock.locked():
             lock.release()
         self.kernel.active_sessions.pop(chat_id, None)
+        # Clear cancel tracking for this chat (best-effort).
+        try:
+            tasks = getattr(self.kernel, "_chat_running_tasks", None)
+            if isinstance(tasks, dict):
+                cur = asyncio.current_task()
+                if tasks.get(str(chat_id)) is cur or cur is None:
+                    tasks.pop(str(chat_id), None)
+        except Exception:
+            pass
         tq = getattr(self.kernel, "task_queue", None)
         if tq is not None:
             try:
@@ -1192,21 +1857,30 @@ class DecisionProcessor:
 
         # Auto-dispatch next queued task (FIFO) for this chat.
         next_item = None
-        if tq is not None:
-            try:
-                next_item = tq.pop_next(str(chat_id))
-            except Exception:
-                next_item = None
+        if not bool(getattr(self.kernel, "_sim_disable_auto_dispatch", False)):
+            if tq is not None:
+                try:
+                    next_item = tq.pop_next(str(chat_id))
+                except Exception:
+                    next_item = None
         if next_item is not None and getattr(self.kernel, "bus", None) is not None:
             try:
+                qt_tid = str(getattr(next_item, "trace_id", "") or "").strip()
                 nxt = AdamiEvent(
-                    trace_id=f"cmd_q_{int(time.time() * 1000)}",
+                    trace_id=(
+                        qt_tid if qt_tid else f"cmd_q_{int(time.time() * 1000)}"
+                    ),
                     source_module=str(next_item.source_module or "user.prompt"),
                     target_topic="system.events",
                     priority=EventPriority.HIGH,
                     payload={"task": next_item.task, "chat_id": str(chat_id)},
                 )
-                asyncio.create_task(self.kernel.bus.publish(nxt))
+                # In offline sim/capture/replay, run inline to avoid race conditions where the capture
+                # thinks the queue drained before the dispatched task starts.
+                if bool(getattr(settings, "ADAMI_SIM_OFFLINE", False)):
+                    await self.process(nxt)
+                else:
+                    asyncio.create_task(self.kernel.bus.publish(nxt))
             except Exception:
                 pass
 
@@ -1524,6 +2198,11 @@ class DecisionProcessor:
     async def _handle_intake_action(
         self, task: str, chat_id: str, platform: str, payload: Optional[Dict[str, Any]] = None
     ):
+        from adami_kernel.integration.sim.dp_offline_scenarios import try_handle_offline_intake
+
+        if await try_handle_offline_intake(self, task, chat_id, platform, payload):
+            return
+
         await self._update_ui(chat_id, platform, i18n_t("dp.ui.distilling_metadata"))
         unc = i18n_t("dp.intake.uncategorized_summary")
         archive_body, source_stem = await _intake_archive_body_from_payload(

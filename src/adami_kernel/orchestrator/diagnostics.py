@@ -50,7 +50,8 @@ class SystemDiagnostics:
         else:
             nerve_status = boot_t("boot.diag.nerve_zero")
 
-        dynamic_skills = getattr(kernel.evolution_engine, "dynamic_skills", {})
+        ee = getattr(kernel, "evolution_engine", None)
+        dynamic_skills = getattr(ee, "dynamic_skills", {}) if ee is not None else {}
 
         table = Table(title=f"[bold cyan]{boot_t('boot.diag.title')}[/bold cyan]", show_lines=True)
         table.add_column(boot_t("boot.diag.col_subsystem"), style="cyan", no_wrap=True)

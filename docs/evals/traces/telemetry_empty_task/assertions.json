@@ -1,0 +1,19 @@
+[
+  {
+    "index": 0,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_source_module": "cortex.router",
+      "expect_payload": { "task": "" }
+    }
+  },
+  {
+    "index": 1,
+    "assertion": { "expect_topic": "system.events", "expect_payload_keys": ["task", "platform"] }
+  },
+  {
+    "index": 2,
+    "assertion": { "expect_payload": { "event_type": "REPLY" } }
+  }
+]
+

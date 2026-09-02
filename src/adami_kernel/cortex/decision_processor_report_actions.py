@@ -129,6 +129,30 @@ async def run_report_action(
             )
             return
 
+        async def _emit_sim(payload: dict) -> None:
+            if not bool(getattr(settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", False)):
+                return
+            bus = getattr(dp.kernel, "bus", None)
+            if bus is None:
+                return
+            try:
+                from adami_kernel.nexus.event import AdamiEvent, EventPriority
+
+                await bus.publish(
+                    AdamiEvent(
+                        trace_id=str(getattr(getattr(dp.kernel, "active_sessions", {}).get(chat_id, {}), "get", lambda _k, _d=None: _d)("trace_id", "") or "")
+                        or f"sim_{rtype}",
+                        source_module="peripheral.report_studio",
+                        target_topic="system.events",
+                        priority=EventPriority.NORMAL,
+                        payload=payload,
+                    )
+                )
+            except Exception:
+                return
+
+        await _emit_sim({"event_type": "REPORT_START", "rtype": rtype})
+
         from adami_kernel.peripheral.report_studio.report_generator import (
             generate_fixed_blocks_report,
         )
@@ -209,6 +233,7 @@ async def run_report_action(
                 dedupe_key=f"report:{rtype}:{now.strftime('%Y-%m-%d')}",
                 filename_prefix=cfg.note_prefix,
             )
+        await _emit_sim({"event_type": "REPORT_DONE", "rtype": rtype, "note_path": str(p)})
         try:
             text = plain_report_text_for_im_channels((body_md or "").strip())
             if text:
@@ -253,9 +278,9 @@ async def run_report_action(
         except Exception as e:
             logger.warning(_dcpu_t("dcpu.warn.report_push", e=e))
 
-        await dp.kernel._send_reply(
-            chat_id, i18n_t("dp.report.generated_path", path=str(p)), platform
-        )
+        final_msg = i18n_t("dp.report.generated_path", path=str(p))
+        await dp.kernel._send_reply(chat_id, final_msg, platform)
+        await _emit_sim({"event_type": "REPLY", "text": final_msg, "rtype": rtype})
         return
 
     await dp.kernel._send_reply(chat_id, i18n_t("dp.report.unknown_subcmd", cmd=cmd), platform)

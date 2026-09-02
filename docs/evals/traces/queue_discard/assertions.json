@@ -1,0 +1,11 @@
+[
+  {
+    "index": 0,
+    "assertion": { "expect_topic": "system.events", "expect_payload_keys": ["task", "platform"] }
+  },
+  {
+    "index": 1,
+    "assertion": { "expect_payload": { "event_type": "REPLY" } }
+  }
+]
+

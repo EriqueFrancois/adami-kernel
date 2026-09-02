@@ -1,0 +1,18 @@
+{
+  "name": "tool_call_reply_actionable",
+  "applies_when": {
+    "payload_event_type_prefix": "TOOL_CALL_"
+  },
+  "rules": {
+    "require_actionable_reply_on_tool_failure": true
+  },
+  "actionable_reply_keywords": [
+    "重试",
+    "缩小范围",
+    "提高超时",
+    "retry",
+    "reduce scope",
+    "increase timeout"
+  ]
+}
+

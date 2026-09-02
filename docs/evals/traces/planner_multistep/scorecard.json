@@ -1,0 +1,22 @@
+{
+  "name": "planner_multistep",
+  "min_correctness": 95,
+  "min_safety": 95,
+  "min_ux": 85,
+  "min_noise": 95,
+  "min_operability": 90,
+  "min_latency": 100,
+  "min_cost": 65,
+  "max_llm_calls": 3,
+  "max_tool_latency_ms_total": 250,
+  "weights": {
+    "correctness": 1,
+    "safety": 1,
+    "ux": 1,
+    "noise": 1,
+    "operability": 1,
+    "latency": 1,
+    "cost": 1
+  }
+}
+

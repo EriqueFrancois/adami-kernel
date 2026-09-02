@@ -44,6 +44,28 @@ poetry run adami
 
 需要重新初始化时，删除该覆盖文件（或把其中 `ADAMI_FIRST_RUN_COMPLETE=false`），再运行 `poetry run adami`。
 
+#### 调整超时（建议）
+
+如果你会在 CLI / Telegram / Discord 中运行较长任务，建议设置 hard-timeout，避免单个卡住的任务一直占用锁从而阻塞队列：
+
+- `ADAMI_CLI_TASK_HARD_TIMEOUT_SEC`（默认 900s）
+- `ADAMI_TASK_HARD_TIMEOUT_SEC`（默认 900s）
+
+你可以在 CLI 的「系统设置」菜单中修改（会写入 `.adami_data/cli_overrides.env`），或直接通过环境变量覆盖。
+
+#### DLQ（死信队列）运维（建议）
+
+EventBus 使用 SQLite 持久化 DLQ（死信队列）以避免瞬态负载下丢事件。若你从旧版本升级后遇到 **RBAC/DLQ 日志刷屏**，
+可以启用“启动时清空一次 DLQ”的开关：
+
+- `ADAMI_DLQ_CLEAR_ON_BOOT=1`
+
+手动清理（仓库根目录，默认路径）：
+
+```bash
+rm -f .adami_data/dlq.db .adami_data/dlq.db-wal .adami_data/dlq.db-shm
+```
+
 ## Architecture（多 Agent 编排）
 
 ```mermaid
@@ -76,4 +98,6 @@ flowchart TB
 - **Cloud**：托管版 AdamI（SaaS）
 
 联系入口：见 `COMMERCIAL_LICENSE.md`。
+
+开源版 vs 企业/云（功能矩阵）：`ENTERPRISE_FEATURE_MATRIX.md`。
 

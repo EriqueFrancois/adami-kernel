@@ -4,6 +4,7 @@ import logging
 import os
 import shlex
 import sys
+import time
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, Optional
 
 if TYPE_CHECKING:
@@ -46,6 +47,38 @@ class ToolboxManager:
         self._external_tool_schemas: Dict[str, Dict[str, Any]] = {}
         # tool_name(UPPER) -> executor coroutine/callable
         self._external_executors: Dict[str, Callable[..., Awaitable[Any]]] = {}
+
+        # Optional EventBus publisher: publish(AdamiEvent) -> bool
+        self._event_publisher: Optional[Callable[[Any], Awaitable[bool]]] = None
+
+    def set_event_publisher(self, publish: Callable[[Any], Awaitable[bool]] | None) -> None:
+        self._event_publisher = publish
+
+    async def _emit_tool_event(
+        self,
+        *,
+        trace_id: Optional[str],
+        source_module: str,
+        payload: Dict[str, Any],
+    ) -> None:
+        if self._event_publisher is None:
+            return
+        from adami_kernel.nexus.event import AdamiEvent, EventPriority
+        from adami_kernel.observability.tool_call_context import get_tool_trace_id
+
+        tid = (trace_id or get_tool_trace_id() or "").strip() or "tool.unknown"
+        try:
+            await self._event_publisher(
+                AdamiEvent(
+                    trace_id=tid,
+                    source_module=source_module,
+                    target_topic="system.events",
+                    priority=EventPriority.NORMAL,
+                    payload=payload,
+                )
+            )
+        except Exception:
+            return
 
     def set_router(self, router):
         """Kernel 启动时动态注入 router（供 MultiModalInput + 新技能使用）"""
@@ -128,13 +161,66 @@ class ToolboxManager:
         """返回外部工具列表（内置工具暂不统一成 schema）。"""
         return dict(self._external_tool_schemas)
 
-    async def execute_tool(self, name: str, args: Optional[Dict[str, Any]] = None) -> Any:
+    async def execute_tool(
+        self,
+        name: str,
+        args: Optional[Dict[str, Any]] = None,
+        *,
+        trace_id: Optional[str] = None,
+        timeout_sec: Optional[float] = None,
+    ) -> Any:
         """执行外部工具（用于统一工具调用主通路的兜底路由）。"""
+        from adami_kernel.observability.timeout_budget import clamp_timeout_to_budget
+
         key = str(name).upper().strip()
         fn = self._external_executors.get(key)
         if not fn:
             raise KeyError(f"external tool not found: {name}")
-        return await fn(**(args or {}))
+        t0 = time.perf_counter()
+        timeout_sec = clamp_timeout_to_budget(timeout_sec)
+        await self._emit_tool_event(
+            trace_id=trace_id,
+            source_module="toolbox.external",
+            payload={"event_type": "TOOL_CALL_START", "tool": key, "timeout_sec": timeout_sec},
+        )
+        try:
+            if timeout_sec is not None:
+                res = await asyncio.wait_for(fn(**(args or {})), timeout=float(timeout_sec))
+            else:
+                res = await fn(**(args or {}))
+            await self._emit_tool_event(
+                trace_id=trace_id,
+                source_module="toolbox.external",
+                payload={
+                    "event_type": "TOOL_CALL_DONE",
+                    "tool": key,
+                    "result": res,
+                    "latency_ms": int((time.perf_counter() - t0) * 1000),
+                },
+            )
+            return res
+        except asyncio.TimeoutError:
+            await self._emit_tool_event(
+                trace_id=trace_id,
+                source_module="toolbox.external",
+                payload={
+                    "event_type": "TOOL_CALL_TIMEOUT",
+                    "tool": key,
+                    "timeout_sec": float(timeout_sec or 0.0),
+                },
+            )
+            raise
+        except Exception as e:
+            await self._emit_tool_event(
+                trace_id=trace_id,
+                source_module="toolbox.external",
+                payload={
+                    "event_type": "TOOL_CALL_ERROR",
+                    "tool": key,
+                    "error": type(e).__name__,
+                },
+            )
+            raise
 
     # ====================== 【问题5 核心新增】独立多模态总结技能 ======================
     async def analyze_raw_media(self, raw_content: str, media_type: str = "document") -> str:
@@ -184,8 +270,16 @@ class ToolboxManager:
 
         return await asyncio.to_thread(_read)
 
-    async def execute_command(self, command: str, timeout: float = 30.0) -> Dict[str, Any]:
+    async def execute_command(
+        self, command: str, timeout: float = 30.0, *, trace_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         venv_env = self._get_venv_env()
+        t0 = time.perf_counter()
+        await self._emit_tool_event(
+            trace_id=trace_id,
+            source_module="toolbox.execute_command",
+            payload={"event_type": "TOOL_CALL_START", "tool": "execute_command", "timeout_sec": timeout},
+        )
         try:
             args = shlex.split(command)
             process = await asyncio.create_subprocess_exec(
@@ -196,15 +290,186 @@ class ToolboxManager:
                 env=venv_env,
             )
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
-            return {
+            out = {
                 "exit_code": process.returncode,
                 "stdout": stdout.decode()[:2000],
                 "stderr": stderr.decode()[:2000],
             }
+            await self._emit_tool_event(
+                trace_id=trace_id,
+                source_module="toolbox.execute_command",
+                payload={
+                    "event_type": "TOOL_CALL_DONE",
+                    "tool": "execute_command",
+                    "exit_code": out.get("exit_code"),
+                    "result": dict(out),
+                    "latency_ms": int((time.perf_counter() - t0) * 1000),
+                },
+            )
+            return out
         except asyncio.TimeoutError:
+            await self._emit_tool_event(
+                trace_id=trace_id,
+                source_module="toolbox.execute_command",
+                payload={"event_type": "TOOL_CALL_TIMEOUT", "tool": "execute_command", "timeout_sec": timeout},
+            )
             return {"exit_code": -1, "stdout": "", "stderr": "Execution timed out."}
         except Exception as e:
+            await self._emit_tool_event(
+                trace_id=trace_id,
+                source_module="toolbox.execute_command",
+                payload={"event_type": "TOOL_CALL_ERROR", "tool": "execute_command", "error": type(e).__name__},
+            )
             return {"exit_code": -1, "stdout": "", "stderr": f"Command failed or invalid: {e}"}
+
+    async def web_search(
+        self,
+        query: str,
+        max_results: int = 5,
+        *,
+        timelimit: Optional[str] = None,
+        region: Optional[str] = None,
+        trace_id: Optional[str] = None,
+        timeout_sec: Optional[float] = 30.0,
+    ) -> list[dict[str, str]]:
+        t0 = time.perf_counter()
+        await self._emit_tool_event(
+            trace_id=trace_id,
+            source_module="toolbox.web_search",
+            payload={
+                "event_type": "TOOL_CALL_START",
+                "tool": "web_search",
+                "timeout_sec": float(timeout_sec or 0.0),
+            },
+        )
+        try:
+            # Deterministic offline mode for sim/replay.
+            if bool(getattr(settings, "ADAMI_SIM_OFFLINE", False)):
+                rows: list[dict[str, str]] = []
+                await self._emit_tool_event(
+                    trace_id=trace_id,
+                    source_module="toolbox.web_search",
+                    payload={
+                        "event_type": "TOOL_CALL_DONE",
+                        "tool": "web_search",
+                        "result": rows,
+                        "latency_ms": int((time.perf_counter() - t0) * 1000),
+                        "n_results": 0,
+                    },
+                )
+                return rows
+            coro = self.web.search(
+                str(query),
+                max_results=int(max_results),
+                timelimit=timelimit,
+                region=region,
+            )
+            rows = (
+                await asyncio.wait_for(coro, timeout=float(timeout_sec))
+                if timeout_sec is not None
+                else await coro
+            )
+            await self._emit_tool_event(
+                trace_id=trace_id,
+                source_module="toolbox.web_search",
+                payload={
+                    "event_type": "TOOL_CALL_DONE",
+                    "tool": "web_search",
+                    "result": rows if isinstance(rows, list) else [],
+                    "latency_ms": int((time.perf_counter() - t0) * 1000),
+                    "n_results": len(rows) if isinstance(rows, list) else 0,
+                },
+            )
+            return rows if isinstance(rows, list) else []
+        except asyncio.TimeoutError:
+            await self._emit_tool_event(
+                trace_id=trace_id,
+                source_module="toolbox.web_search",
+                payload={
+                    "event_type": "TOOL_CALL_TIMEOUT",
+                    "tool": "web_search",
+                    "timeout_sec": float(timeout_sec or 0.0),
+                },
+            )
+            return [
+                {
+                    "title": _tlsm_t("webt.err.fail_title"),
+                    "href": "",
+                    "body": _tlsm_t("webt.err.fail_body", detail="timeout", backend="toolbox"),
+                }
+            ]
+        except Exception as e:
+            await self._emit_tool_event(
+                trace_id=trace_id,
+                source_module="toolbox.web_search",
+                payload={"event_type": "TOOL_CALL_ERROR", "tool": "web_search", "error": type(e).__name__},
+            )
+            return [
+                {
+                    "title": _tlsm_t("webt.err.fail_title"),
+                    "href": "",
+                    "body": _tlsm_t("webt.err.fail_body", detail=str(e)[:120], backend="toolbox"),
+                }
+            ]
+
+    async def process_multimodal(
+        self,
+        media_type: str,
+        payload: Dict[str, Any],
+        *,
+        trace_id: Optional[str] = None,
+        timeout_sec: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        t0 = time.perf_counter()
+        await self._emit_tool_event(
+            trace_id=trace_id,
+            source_module="toolbox.multimodal",
+            payload={
+                "event_type": "TOOL_CALL_START",
+                "tool": f"multimodal.{str(media_type)}",
+                "timeout_sec": float(timeout_sec or 0.0) if timeout_sec is not None else None,
+            },
+        )
+        try:
+            coro = self.multi_modal.process_input(str(media_type), dict(payload or {}))
+            res = (
+                await asyncio.wait_for(coro, timeout=float(timeout_sec))
+                if timeout_sec is not None
+                else await coro
+            )
+            await self._emit_tool_event(
+                trace_id=trace_id,
+                source_module="toolbox.multimodal",
+                payload={
+                    "event_type": "TOOL_CALL_DONE",
+                    "tool": f"multimodal.{str(media_type)}",
+                    "result": res if isinstance(res, dict) else {"type": "text", "content": str(res)},
+                    "latency_ms": int((time.perf_counter() - t0) * 1000),
+                },
+            )
+            return res if isinstance(res, dict) else {"type": "text", "content": str(res)}
+        except asyncio.TimeoutError:
+            await self._emit_tool_event(
+                trace_id=trace_id,
+                source_module="toolbox.multimodal",
+                payload={
+                    "event_type": "TOOL_CALL_TIMEOUT",
+                    "tool": f"multimodal.{str(media_type)}",
+                    "timeout_sec": float(timeout_sec or 0.0),
+                },
+            )
+            return {"type": "text", "content": _tlsm_t("mmodal.voice.timeout"), "task": ""}
+        except Exception as e:
+            await self._emit_tool_event(
+                trace_id=trace_id,
+                source_module="toolbox.multimodal",
+                payload={
+                    "event_type": "TOOL_CALL_ERROR",
+                    "tool": f"multimodal.{str(media_type)}",
+                    "error": type(e).__name__,
+                },
+            )
+            return {"type": "text", "content": str(e)[:200], "task": ""}
 
     async def patch_cortex_tool(self, tool_filename: str, new_code: str) -> str:
         target_path = os.path.abspath(os.path.join(self.allowed_patch_dir, tool_filename))
@@ -246,7 +511,9 @@ class ToolboxManager:
     async def analyze_image(self, image_base64: str) -> str:
         """图像理解（BLIP）—— 现在走独立技能"""
         try:
-            result = await self.multi_modal.process_input("photo", {"image_base64": image_base64})
+            result = await self.process_multimodal(
+                "photo", {"image_base64": image_base64}, trace_id=None, timeout_sec=45.0
+            )
             if isinstance(result, dict) and result.get("type") == "raw_multi_modal":
                 return await self.analyze_raw_media(result.get("raw_content", ""), "photo")
             return result.get("content", _tlsm_t("tlsm.image.default_fail"))
@@ -256,7 +523,9 @@ class ToolboxManager:
     async def parse_file(self, file_path: str) -> str:
         """文件解析（PDF/Word/Excel）—— 现在走独立技能"""
         try:
-            result = await self.multi_modal.process_input("document", {"file_path": file_path})
+            result = await self.process_multimodal(
+                "document", {"file_path": file_path}, trace_id=None, timeout_sec=60.0
+            )
             if isinstance(result, dict) and result.get("type") == "raw_multi_modal":
                 return await self.analyze_raw_media(result.get("raw_content", ""), "document")
             return result.get("content", _tlsm_t("tlsm.file.default_fail"))

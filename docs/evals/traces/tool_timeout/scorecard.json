@@ -1,0 +1,12 @@
+{
+  "min_correctness": 100,
+  "min_safety": 100,
+  "min_ux": 95,
+  "min_noise": 100,
+  "min_operability": 95,
+  "min_latency": 100,
+  "min_cost": 98,
+  "max_tool_latency_ms_total": 250,
+  "max_duration_sec": 10.0
+}
+

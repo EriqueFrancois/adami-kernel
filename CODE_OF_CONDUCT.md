@@ -42,7 +42,7 @@ officially representing the community in public spaces.
 
 Report unacceptable behavior to:
 
-- **Email**: (TODO) conduct contact email
+- **Email**: `erik.hwang@hotmail.com`
 
 All complaints will be reviewed and investigated promptly and fairly.
 

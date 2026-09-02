@@ -1,0 +1,66 @@
+[
+  {
+    "index": 0,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload_keys": ["task", "chat_id", "platform"]
+    }
+  },
+  {
+    "index": 2,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload": {
+        "event_type": "TOOLCHOICE_START"
+      }
+    }
+  },
+  {
+    "index": 3,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload": {
+        "event_type": "TOOL_CALL_START",
+        "tool": "llm.think"
+      }
+    }
+  },
+  {
+    "index": 5,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload": {
+        "event_type": "TOOL_CALL_START",
+        "tool": "llm.action"
+      }
+    }
+  },
+  {
+    "index": -3,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload": {
+        "event_type": "REPLY"
+      }
+    }
+  },
+  {
+    "index": -2,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload": {
+        "event_type": "TOOLCHOICE_DONE"
+      }
+    }
+  },
+  {
+    "index": -1,
+    "assertion": {
+      "expect_topic": "system.events",
+      "expect_payload": {
+        "event_type": "REPLY"
+      }
+    }
+  }
+]
+
