@@ -192,25 +192,9 @@ class CircadianNerve:
         )
         console.print(_circ_t("circ.morning.console", prefix=prefix))
 
-        task_content = _circ_t(
-            "circ.morning.task",
-            prefix=prefix,
-            date=now.strftime("%Y-%m-%d"),
-        )
-
-        # 【修复】将 chat_id 转换为字符串，与 DecisionProcessor 期望类型一致
-        event = AdamiEvent(
-            trace_id=f"circadian_{int(now.timestamp())}",
-            source_module="peripheral.circadian",
-            target_topic="system.events",
-            priority=EventPriority.HIGH,
-            payload={"task": task_content, "chat_id": str(self.default_chat_id)},
-        )
-
-        try:
-            await self.event_bus.publish(event)
-        except Exception as e:
-            console.print(_circ_t("circ.publish.fail_console", err=e))
+        # Morning briefing is owned by ReportScheduler (`/report run daily`).
+        # Do not publish the free-form planner prompt (circ.morning.task): it raced
+        # the studio report, retrieved stale Inbox notes, and leaked JSON scratchpads.
 
         # ====================== 模块五：last30days 外部世界简报触发（可选） ======================
         try:

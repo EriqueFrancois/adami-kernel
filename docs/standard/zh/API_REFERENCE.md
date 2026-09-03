@@ -90,4 +90,4 @@
 
 ## 7. 版本化
 
-`pyproject.toml` 中 `version` 为包版本（撰写时为 `0.2.0`）。公开 JSON/i18n 目录**未**单独 semver —— 若 fork 维护，请将 catalog 键增删视为契约变更。
+`pyproject.toml` 中 `version` 为包版本（撰写时为 `0.2.1`）。公开 JSON/i18n 目录**未**单独 semver —— 若 fork 维护，请将 catalog 键增删视为契约变更。

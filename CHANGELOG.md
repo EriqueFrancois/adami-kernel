@@ -20,6 +20,21 @@ Initial alpha release for early adopters.
 
 - This is an **alpha** release: APIs and defaults may change.
 
+## v0.2.1 — 2026-09-03
+
+Package version in `pyproject.toml` is now **0.2.1**.
+
+### Fixed
+
+- **Morning brief (Telegram)**: Circadian 09:00 no longer publishes the free-form planner “每日晨会”
+  prompt. That job raced Report Studio’s `/report run daily`, retrieved April `Inbox/report-*` notes,
+  and leaked nested JSON (`original_task`, `second_brain_snippets`, `previous_result`) as the first
+  chat message.
+- **SecondBrain retrieve**: skip Report Studio notes; prefer filename dates so old briefs are not
+  treated as today’s news.
+- **Planner / DecisionProcessor**: do not send internal scratchpad JSON to the user; `/report run`
+  skips the SecondBrain path line on Telegram/Discord and the extra “done” footer.
+
 ## v0.2.0 — 2026-09-02
 
 Package version in `pyproject.toml` is now **0.2.0**.

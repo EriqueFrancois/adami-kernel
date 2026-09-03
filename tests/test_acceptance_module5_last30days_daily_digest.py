@@ -33,8 +33,14 @@ async def test_circadian_publishes_last30days_daily_event(monkeypatch: pytest.Mo
     now = datetime(2026, 4, 13, 9, 0, 0, tzinfo=timezone(timedelta(hours=8)))  # Monday 09:00 BJT
     await nerve._trigger_morning_routine(now, is_test=True)
 
-    # At least: 1 morning report + 1 last30days daily digest
-    assert len(bus.events) >= 2
+    # At least: last30days daily digest (morning planner brief is no longer published)
+    assert len(bus.events) >= 1
+    planner_briefs = [
+        e
+        for e in bus.events
+        if str(e.trace_id).startswith("circadian_") and "last30days" not in str(e.trace_id)
+    ]
+    assert not planner_briefs, "circadian must not publish circ.morning.task planner jobs"
     last = [e for e in bus.events if "circadian_last30days_daily" in str(e.trace_id)]
     assert last, "expected daily last30days event"
     ev = last[0]
@@ -87,3 +93,12 @@ async def test_circadian_last30days_cooldown_skips_second_trigger(
     second = len([e for e in bus.events if "circadian_last30days_daily" in str(e.trace_id)])
     assert first == 1
     assert second == 1, "second trigger should be skipped by cooldown"
+
+
+@pytest.mark.asyncio
+async def test_circadian_morning_does_not_publish_planner_brief() -> None:
+    bus = _FakeBus()
+    nerve = CircadianNerve(bus, default_chat_id=1)
+    now = datetime(2026, 9, 3, 9, 0, 0, tzinfo=timezone(timedelta(hours=8)))
+    await nerve._trigger_morning_routine(now, is_test=False)
+    assert bus.events == []

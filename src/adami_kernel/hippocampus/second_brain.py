@@ -2,6 +2,8 @@ import asyncio
 import logging
 import os
 import re
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
@@ -116,6 +118,71 @@ def _parse_md_summary_and_first_heading(text: str) -> Tuple[str, str]:
 def _topic_tokens(topic: str) -> List[str]:
     parts = [p.strip() for p in re.split(r"[\s,，、;；]+", topic) if p.strip()]
     return parts if parts else [topic.strip()]
+
+
+_NOTE_DATE_IN_NAME = re.compile(r"(20\d{2})[-_]?(\d{2})[-_]?(\d{2})")
+
+
+def _frontmatter_source(text: str) -> str:
+    if not (text or "").startswith("---"):
+        return ""
+    close = text.find("\n---", 4)
+    if close == -1:
+        return ""
+    fm = text[4:close]
+    for raw_ln in fm.split("\n"):
+        ln = raw_ln.strip()
+        if ln.lower().startswith("source:"):
+            val = raw_ln.split(":", 1)[1].strip()
+            if len(val) >= 2 and val[0] == val[-1] and val[0] in "'\"":
+                val = val[1:-1]
+            return val.strip()
+    return ""
+
+
+def _is_generated_report_note(rel: str, raw: str, title: str) -> bool:
+    """Studio-written briefs must not be re-injected as 'news' for a new briefing."""
+    name = Path(rel).name.lower()
+    if name.startswith("report-"):
+        return True
+    src = _frontmatter_source(raw).lower().replace("-", "_")
+    if src == "report_studio":
+        return True
+    tl = (title or "").strip().lower()
+    return tl.startswith("report:") or tl.startswith("report：")
+
+
+def _note_recency_ts(path: Path, rel: str) -> float:
+    m = _NOTE_DATE_IN_NAME.search(Path(rel).name)
+    if m:
+        try:
+            dt = datetime(
+                int(m.group(1)),
+                int(m.group(2)),
+                int(m.group(3)),
+                tzinfo=timezone.utc,
+            )
+            return dt.timestamp()
+        except ValueError:
+            pass
+    try:
+        return float(path.stat().st_mtime)
+    except OSError:
+        return 0.0
+
+
+def _recency_score_boost(recency_ts: float, *, now_ts: Optional[float] = None) -> int:
+    now = float(now_ts if now_ts is not None else time.time())
+    if recency_ts <= 0:
+        return 0
+    age_days = max(0.0, (now - recency_ts) / 86400.0)
+    if age_days <= 3:
+        return 6
+    if age_days <= 14:
+        return 3
+    if age_days <= 45:
+        return 1
+    return 0
 
 
 def _snippet_match_score(tokens: List[str], summary: str, title: str, rel_path: str) -> int:
@@ -299,7 +366,8 @@ class SecondBrainManager:
             return ""
         k = max(1, min(int(max_files), 50))
         tokens = _topic_tokens(topic_clean)
-        scored: List[Tuple[int, str, str, str]] = []
+        scored: List[Tuple[int, float, str, str, str]] = []
+        now_ts = time.time()
 
         for sub in _RETRIEVE_SNIPPET_SUBDIRS:
             d = self.root / sub
@@ -322,17 +390,21 @@ class SecondBrainManager:
                     continue
                 summary, title = _parse_md_summary_and_first_heading(raw)
                 rel = f"{sub}/{p.name}"
+                if _is_generated_report_note(rel, raw, title):
+                    continue
+                recency_ts = _note_recency_ts(p, rel)
                 sc = _snippet_match_score(tokens, summary, title, rel)
+                sc += _recency_score_boost(recency_ts, now_ts=now_ts)
                 if sc > 0:
-                    scored.append((sc, rel, summary, title))
+                    scored.append((sc, recency_ts, rel, summary, title))
 
         if not scored:
             return ""
 
-        scored.sort(key=lambda x: -x[0])
+        scored.sort(key=lambda x: (-x[0], -x[1]))
         picked = scored[:k]
         blocks: List[str] = []
-        for sc, rel, summary, title in picked:
+        for sc, _recency_ts, rel, summary, title in picked:
             blocks.append(
                 f"### `{rel}` (match={sc})\n"
                 f"- **summary**: {summary or _sb_t('sb.snippet.none')}\n"

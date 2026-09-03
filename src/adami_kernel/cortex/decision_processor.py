@@ -24,6 +24,7 @@ from adami_kernel.core.kernel_context import KernelContext
 
 # =====================================================================
 from adami_kernel.cortex.decision_processor_report_actions import run_report_action
+from adami_kernel.orchestrator.planner import looks_like_planner_scratchpad
 from adami_kernel.cortex.decision_processor_support import (
     SkillCreationPlan,
     TaskFailedException,
@@ -897,6 +898,7 @@ class DecisionProcessor:
                     set_task_timeout_budget,
                 )
                 budget_token = None
+                self._skip_lifecycle_done = False
 
                 try:
 
@@ -948,6 +950,8 @@ class DecisionProcessor:
                             await self._dispatch_system_action(
                                 data, task_text, chat_id, platform, event.payload
                             )
+                            if data == IntentSystemToken.REPORT.value:
+                                self._skip_lifecycle_done = True
                         elif tag == "DIRECT_ANSWER":
                             await self._dispatch_direct_answer(
                                 data, task_text, chat_id, platform, event.trace_id
@@ -1025,8 +1029,8 @@ class DecisionProcessor:
                             )
                         except Exception:
                             footer_sent = False
-                        if footer_sent:
-                            # Final result already contains a trace footer; avoid adding an extra done line.
+                        if footer_sent or bool(getattr(self, "_skip_lifecycle_done", False)):
+                            # Report Studio already pushed the briefing; skip the extra "done" line.
                             pass
                         else:
                             msg_done = i18n_t(
@@ -1185,6 +1189,7 @@ class DecisionProcessor:
                     self._write_session_export_log(
                         task_text, chat_id, platform, str(event.trace_id)
                     )
+                    self._skip_lifecycle_done = False
                     await self._release_session_lock(chat_id)
             finally:
                 reset_request_locale(loc_token)
@@ -1707,6 +1712,8 @@ class DecisionProcessor:
                 wid = str(plan_result.get("workflow_id") or "") or None
                 if "text" in plan_result and isinstance(plan_result.get("text"), str):
                     plan_text = str(plan_result.get("text") or "")
+            if looks_like_planner_scratchpad(plan_text):
+                return
             await self.kernel._send_reply(
                 chat_id,
                 plan_text,

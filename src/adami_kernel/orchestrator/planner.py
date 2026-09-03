@@ -69,6 +69,49 @@ def _plnr_t(key: str, **kwargs: Any) -> str:
     return t(key, locale=settings.effective_ui_default_locale(), **kwargs)
 
 
+_PLANNER_SCRATCHPAD_KEYS = (
+    "original_task",
+    "original_user_task",
+    "second_brain_snippets",
+    "previous_result",
+)
+
+
+def looks_like_planner_scratchpad(payload: Any) -> bool:
+    """True when a planner iteration echoed internal context instead of a user reply."""
+    if isinstance(payload, dict):
+        keys = {str(k) for k in payload.keys()}
+        return len(keys.intersection(_PLANNER_SCRATCHPAD_KEYS)) >= 2
+    s = str(payload or "").lstrip()
+    if not s.startswith("{"):
+        return False
+    hits = 0
+    for k in _PLANNER_SCRATCHPAD_KEYS:
+        if f'"{k}"' in s or f"'{k}'" in s:
+            hits += 1
+            if hits >= 2:
+                return True
+    return False
+
+
+def _digest_previous_result(result: Any, *, max_chars: int = 800) -> str:
+    if looks_like_planner_scratchpad(result):
+        return ""
+    if isinstance(result, (dict, list)):
+        try:
+            s = json.dumps(result, ensure_ascii=False, default=str)
+        except Exception:
+            s = str(result)
+    else:
+        s = str(result or "")
+    s = s.strip()
+    if looks_like_planner_scratchpad(s):
+        return ""
+    if len(s) > max_chars:
+        return s[:max_chars] + "…"
+    return s
+
+
 class TaskPlanner:
     """
     AdamI 任务规划器 V3.0（迭代式任务执行与评估 + Step 4 扩展：Graceful Degradation 成功率长期监控）
@@ -475,7 +518,7 @@ class TaskPlanner:
                     break
                 last_remaining = remaining
                 current_task = remaining
-                context["previous_result"] = result
+                context["previous_result"] = _digest_previous_result(result)
                 context["remaining_task"] = remaining
                 context["iteration"] = iteration
                 logger.info(_plnr_t("plnr.log.iter_next", task=current_task))
@@ -561,6 +604,8 @@ class TaskPlanner:
         """
         统一格式化最终结果，支持字符串（可能是 JSON）或字典。
         """
+        if looks_like_planner_scratchpad(result):
+            return t("planner.result.no_valid_result")
         if isinstance(result, dict):
             # 【新增】直接处理技能返回的基础结构
             if "status" in result:
@@ -571,9 +616,13 @@ class TaskPlanner:
                     return t("planner.result.task_issue", detail=err)
             return self._extract_result_from_context(result)
         elif isinstance(result, str):
+            if looks_like_planner_scratchpad(result):
+                return t("planner.result.no_valid_result")
             try:
                 data = json.loads(result)
                 if isinstance(data, dict):
+                    if looks_like_planner_scratchpad(data):
+                        return t("planner.result.no_valid_result")
                     return self._extract_result_from_context(data)
                 else:
                     return result

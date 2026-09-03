@@ -234,6 +234,7 @@ async def run_report_action(
                 filename_prefix=cfg.note_prefix,
             )
         await _emit_sim({"event_type": "REPORT_DONE", "rtype": rtype, "note_path": str(p)})
+        body_pushed = False
         try:
             text = plain_report_text_for_im_channels((body_md or "").strip())
             if text:
@@ -275,11 +276,15 @@ async def run_report_action(
                 await dp.kernel._send_reply(chat_id, header, platform)
                 for part in _chunks(text, max_len):
                     await dp.kernel._send_reply(chat_id, part, platform)
+                body_pushed = True
         except Exception as e:
             logger.warning(_dcpu_t("dcpu.warn.report_push", e=e))
 
         final_msg = i18n_t("dp.report.generated_path", path=str(p))
-        await dp.kernel._send_reply(chat_id, final_msg, platform)
+        plat = str(platform or "").lower()
+        # IM already received the briefing body; the SecondBrain path line is CLI/debug noise.
+        if not (body_pushed and plat in ("telegram", "discord")):
+            await dp.kernel._send_reply(chat_id, final_msg, platform)
         await _emit_sim({"event_type": "REPLY", "text": final_msg, "rtype": rtype})
         return
 

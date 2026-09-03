@@ -49,3 +49,44 @@ def test_retrieve_brain_snippets_matches_title_without_frontmatter(tmp_path: Pat
     out = sb.retrieve_brain_snippets("Rust 异步", max_files=2)
     assert out
     assert "Resources/rust_async.md" in out
+
+
+def test_retrieve_brain_snippets_skips_report_studio_notes(tmp_path: Path):
+    root = tmp_path / "brain"
+    inbox = root / "Inbox"
+    inbox.mkdir(parents=True)
+    (inbox / "report-2026-04-11-report-daily.md").write_text(
+        "---\n"
+        "title: report: daily (2026-04-11)\n"
+        "summary: '# 日报简报'\n"
+        "source: report_studio\n"
+        "---\n\n"
+        "# 日报简报\n",
+        encoding="utf-8",
+    )
+    (inbox / "note_para.md").write_text(
+        "---\nsummary: PARA 工作流与日报无关笔记\n---\n\n# PARA\n",
+        encoding="utf-8",
+    )
+    sb = SecondBrainManager(str(root))
+    out = sb.retrieve_brain_snippets("日报 PARA", max_files=5)
+    assert "report-2026-04-11" not in out
+    assert "Inbox/note_para.md" in out
+
+
+def test_retrieve_brain_snippets_prefers_filename_date_recency(tmp_path: Path):
+    root = tmp_path / "brain"
+    inbox = root / "Inbox"
+    inbox.mkdir(parents=True)
+    (inbox / "note_20260404_old.md").write_text(
+        "---\nsummary: 全球重大新闻摘录\n---\n\n# 旧闻\n",
+        encoding="utf-8",
+    )
+    (inbox / "note_20260903_new.md").write_text(
+        "---\nsummary: 全球重大新闻摘录\n---\n\n# 新讯\n",
+        encoding="utf-8",
+    )
+    sb = SecondBrainManager(str(root))
+    out = sb.retrieve_brain_snippets("全球重大新闻", max_files=1)
+    assert "note_20260903_new.md" in out
+    assert "note_20260404_old.md" not in out
