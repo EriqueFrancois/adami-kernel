@@ -287,7 +287,9 @@ jobs:
               failures.append(f"missing_trace:{name}")
               continue
             cmd = [
-              sys.executable,
+              "poetry",
+              "run",
+              "python",
               "-m",
               "adami_kernel.integration.sim.replay_run_cli",
               str(trace),
@@ -347,7 +349,9 @@ jobs:
               failures.append(f"missing_trace:{name}")
               continue
             cmd = [
-              sys.executable,
+              "poetry",
+              "run",
+              "python",
               "-m",
               "adami_kernel.integration.sim.replay_run_cli",
               str(trace),
@@ -399,7 +403,9 @@ jobs:
               failures.append(f"missing_trace:{name}")
               continue
             cmd = [
-              sys.executable,
+              "poetry",
+              "run",
+              "python",
               "-m",
               "adami_kernel.integration.sim.replay_run_cli",
               str(trace),
@@ -450,7 +456,9 @@ jobs:
               failures.append(f"missing_trace:{name}")
               continue
             cmd = [
-              sys.executable,
+              "poetry",
+              "run",
+              "python",
               "-m",
               "adami_kernel.integration.sim.replay_run_cli",
               str(trace),
