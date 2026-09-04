@@ -15,7 +15,6 @@ from adami_kernel.nexus.event import AdamiEvent, EventPriority
 @pytest.mark.asyncio
 async def test_event_consumer_skips_events_without_task(monkeypatch: pytest.MonkeyPatch) -> None:
     """Regression: internal/telemetry records on system.events must not re-enter DP routing."""
-
     bus = EventBus()
     await bus.initialize()
 

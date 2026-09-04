@@ -12,7 +12,7 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import adami_kernel.config as config_mod
 from adami_kernel.core.component_initializer import ComponentInitializer
@@ -24,9 +24,9 @@ from adami_kernel.integration.sim.replay import (
     replay_inject_with_faults,
     validate_phase1_records,
 )
+from adami_kernel.integration.sim.replay_trace_compare import compare_isomorphic
 from adami_kernel.integration.sim.schema import ReplayTraceRecordV1
 from adami_kernel.integration.sim.trace_sink import get_trace_sink
-from adami_kernel.integration.sim.replay_trace_compare import compare_isomorphic
 from adami_kernel.nexus.event import AdamiEvent, EventPriority
 from adami_kernel.observability.tool_call_context import reset_tool_trace_id, set_tool_trace_id
 
@@ -134,7 +134,7 @@ async def run_replay(
         await replay_inject_with_faults(records, _collect, faults)
         # Keep original ts ordering/shape; we only care about payload + order.
         # Use original timestamps where available.
-        for i, r in enumerate(injected):
+        for i, _r in enumerate(injected):
             if i < len(records):
                 injected[i] = injected[i].model_copy(update={"ts": float(records[i].ts)})
         records = injected
@@ -169,9 +169,9 @@ async def run_replay(
     os.environ["ADAMI_SIM_OFFLINE"] = "1"
 
     try:
-        setattr(config_mod.settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", True)
-        setattr(config_mod.settings, "ADAMI_SIM_TRACE_EXPORT_PATH", str(export_path))
-        setattr(config_mod.settings, "ADAMI_SIM_OFFLINE", True)
+        config_mod.settings.ADAMI_SIM_TRACE_EXPORT_ENABLED = True
+        config_mod.settings.ADAMI_SIM_TRACE_EXPORT_PATH = str(export_path)
+        config_mod.settings.ADAMI_SIM_OFFLINE = True
     except Exception:
         pass
 
@@ -417,7 +417,6 @@ async def run_replay(
     # Replay only the "prompt" records, but drive execution via deterministic kernel paths
     # (same strategy as golden trace capture), so we don't depend on Planner/LLM.
     from adami_kernel.cortex.decision_processor_report_actions import run_report_action
-    from adami_kernel.orchestrator.workflow_models import Node, WorkflowState
 
     consumer_task = None
     if full_kernel or inject_all_records:
@@ -839,9 +838,9 @@ async def run_replay(
     else:
         os.environ["ADAMI_SIM_OFFLINE"] = old_env_sim_offline
     try:
-        setattr(config_mod.settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", old_cfg_trace_enabled)
-        setattr(config_mod.settings, "ADAMI_SIM_TRACE_EXPORT_PATH", old_cfg_trace_path)
-        setattr(config_mod.settings, "ADAMI_SIM_OFFLINE", old_cfg_sim_offline)
+        config_mod.settings.ADAMI_SIM_TRACE_EXPORT_ENABLED = old_cfg_trace_enabled
+        config_mod.settings.ADAMI_SIM_TRACE_EXPORT_PATH = old_cfg_trace_path
+        config_mod.settings.ADAMI_SIM_OFFLINE = old_cfg_sim_offline
     except Exception:
         pass
 

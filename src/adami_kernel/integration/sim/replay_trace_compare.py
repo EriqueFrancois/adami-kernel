@@ -101,7 +101,7 @@ def compare_isomorphic(
             expected={"length": len(exp)},
             actual={"length": len(act)},
         )
-    for i, (e, a) in enumerate(zip(exp, act)):
+    for i, (e, a) in enumerate(zip(exp, act, strict=True)):
         if e != a:
             return TraceMismatch(index=i, reason="record_mismatch", expected=e, actual=a)
     return None

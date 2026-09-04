@@ -14,7 +14,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Sequence
+from typing import Iterable, Sequence
 
 from adami_kernel.integration.sim.schema import ReplayTraceRecordV1
 from adami_kernel.integration.sim.trace_sink import event_to_record

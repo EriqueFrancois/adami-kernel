@@ -5,7 +5,7 @@ from __future__ import annotations
 import statistics
 import time
 from collections import deque
-from typing import Any, Deque, Dict, List, Optional
+from typing import Any, Deque, Dict, List
 
 from adami_kernel.config import settings
 

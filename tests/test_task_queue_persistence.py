@@ -134,7 +134,6 @@ def test_in_progress_ttl_drops_stale_running(tmp_path: Path) -> None:
 
 def test_recover_in_progress_preserves_trace_id(tmp_path: Path) -> None:
     p = tmp_path / "tq_recover.json"
-    tq = TaskQueueStore(p, ttl_sec=0.0, in_progress_ttl_sec=0.0, max_per_chat=0, max_total=0)
     started = time.time()
     payload = {
         "version": 1,

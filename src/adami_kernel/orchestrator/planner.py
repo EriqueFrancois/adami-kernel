@@ -949,12 +949,12 @@ class TaskPlanner:
                     chat_id=chat_id, task_description=task
                 )
                 msg = t("planner.workflow_engine.started", workflow_id=workflow_id)
-                return _out(msg, status="success", workflow_id=workflow_id)
+                return msg
             except Exception as e:
                 error_detail = str(e)
                 friendly_msg = t("planner.workflow_engine.start_failed", detail=error_detail)
                 logger.warning(_plnr_t("plnr.warn.wf_start_fail", detail=error_detail))
-                return _out(friendly_msg, status="error")
+                return friendly_msg
 
         if self.episodic_memory:
             recall = await self.episodic_memory.recall_errors(task, "plan_and_execute")

@@ -8,12 +8,13 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from adami_kernel.config import settings
+from adami_kernel.cortex.endocrine import status_or_normal
 from adami_kernel.cortex.evolution import EvolutionEngine
 from adami_kernel.cortex.meta_cortex import MetaCortex
 from adami_kernel.i18n import t
 from adami_kernel.market.github_hunter import GitHubHunter
 from adami_kernel.market.melter import SkillMelter
-from adami_kernel.cortex.endocrine import status_or_normal
+from adami_kernel.market.prompt_constants import META_CORTEX_PERSONA
 
 logger = logging.getLogger("AdamI-SkillMarket")
 

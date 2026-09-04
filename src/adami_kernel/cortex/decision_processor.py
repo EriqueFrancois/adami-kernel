@@ -24,7 +24,6 @@ from adami_kernel.core.kernel_context import KernelContext
 
 # =====================================================================
 from adami_kernel.cortex.decision_processor_report_actions import run_report_action
-from adami_kernel.orchestrator.planner import looks_like_planner_scratchpad
 from adami_kernel.cortex.decision_processor_support import (
     SkillCreationPlan,
     TaskFailedException,
@@ -56,6 +55,7 @@ from adami_kernel.i18n.ui_static import task_matches_pipe_catalog
 from adami_kernel.nexus.event import AdamiEvent, EventPriority
 from adami_kernel.observability.activity_clock import touch_user_activity_from_event
 from adami_kernel.observability.agl_compat import decision_tracer as tracer
+from adami_kernel.orchestrator.planner import looks_like_planner_scratchpad
 from adami_kernel.telemetry.experience_sink import (
     get_experience_sink,
     infer_tool_audit_meta,
@@ -139,12 +139,12 @@ class DecisionProcessor:
             _lk = getattr(self.kernel, "_dp_reply_once_lock", None)
             if _lk is None:
                 _lk = asyncio.Lock()
-                setattr(self.kernel, "_dp_reply_once_lock", _lk)
+                self.kernel._dp_reply_once_lock = _lk
             async with _lk:
                 seen: Set[Tuple[str, str, str]] = getattr(self.kernel, "_dp_reply_once", None)
                 if seen is None:
                     seen = set()
-                    setattr(self.kernel, "_dp_reply_once", seen)
+                    self.kernel._dp_reply_once = seen
                 key = (str(chat_id), str(trace_id), str(kind))
                 if key in seen:
                     if bool(getattr(settings, "ADAMI_DP_EVENT_DEBUG", False)):
@@ -202,7 +202,7 @@ class DecisionProcessor:
             m = getattr(self.kernel, "_dp_throttle", None)
             if m is None:
                 m = {}
-                setattr(self.kernel, "_dp_throttle", m)
+                self.kernel._dp_throttle = m
             key = (str(chat_id), str(kind))
             last = float(m.get(key) or 0.0)
             if last > 0 and (now - last) < float(window_sec):
@@ -283,7 +283,10 @@ class DecisionProcessor:
         err_code: Optional[str] = None
         ok = True
         t0 = time.perf_counter()
-        from adami_kernel.observability.tool_call_context import reset_tool_trace_id, set_tool_trace_id
+        from adami_kernel.observability.tool_call_context import (
+            reset_tool_trace_id,
+            set_tool_trace_id,
+        )
 
         token = set_tool_trace_id(str(trace_id))
         try:
@@ -1768,9 +1771,10 @@ class DecisionProcessor:
         res = await self._execute_action(action, args, chat_id, platform, event.trace_id, task_text)
 
         if res == "TASK_COMPLETE":
+            done_locale = get_request_locale() or settings.effective_ui_default_locale()
             await self.kernel._send_reply(
                 chat_id,
-                i18n_t("dp.task.completed", trace_id=str(event.trace_id), locale=effective_locale),
+                i18n_t("dp.task.completed", trace_id=str(event.trace_id), locale=done_locale),
                 platform=platform,
             )
             return

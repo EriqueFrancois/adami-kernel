@@ -443,7 +443,7 @@ class LifecycleManager:
                         m = getattr(self, "_trace_footer_sent", None)
                         if m is None:
                             m = set()
-                            setattr(self, "_trace_footer_sent", m)
+                            self._trace_footer_sent = m
                         m.add((str(chat_id), str(trace_id)))
                 except Exception:
                     pass

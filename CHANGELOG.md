@@ -20,6 +20,16 @@ Initial alpha release for early adopters.
 
 - This is an **alpha** release: APIs and defaults may change.
 
+## v0.2.2 — 2026-09-04
+
+Package version in `pyproject.toml` is now **0.2.2**.
+
+### Fixed
+
+- **CI `lint-and-gates`**: `ruff check src/ tests/` is green. Import order (`I001`) from the 0.2.1
+  planner-scratchpad import is sorted; historical `F821` (`boot_t`, `_out`, `effective_locale`,
+  `META_CORTEX_PERSONA`) and leftover unused/B010/zip-strict issues in the same gate are cleared.
+
 ## v0.2.1 — 2026-09-03
 
 Package version in `pyproject.toml` is now **0.2.1**.

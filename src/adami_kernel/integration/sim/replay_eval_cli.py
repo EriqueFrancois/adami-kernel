@@ -51,8 +51,8 @@ def main(argv: list[str] | None = None) -> int:
     from adami_kernel.integration.sim.replay_eval import (
         evaluate_suite_dir,
         evaluate_trace_file,
-        render_suite_markdown_report,
         render_markdown_report,
+        render_suite_markdown_report,
     )
 
     if args.suite_dir is not None:

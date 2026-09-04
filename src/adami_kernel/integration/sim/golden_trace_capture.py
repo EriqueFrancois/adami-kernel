@@ -83,9 +83,8 @@ async def _capture_once(*, tasks: List[str]) -> None:
     try:
         # publish tasks as CLI events
         chat_id = "cli"
-        from adami_kernel.cortex.decision_processor_report_actions import run_report_action
-
         from adami_kernel.cortex.decision_processor import DecisionProcessor
+        from adami_kernel.cortex.decision_processor_report_actions import run_report_action
 
         # Workflow engine should be running for workflow traces.
         await components["workflow_engine"].initialize()
@@ -339,11 +338,11 @@ def main(argv: list[str] | None = None) -> int:
     # so `reload_settings()` would not update their references. For capture we mutate the existing
     # settings object in-place so the whole process sees consistent flags.
     try:
-        setattr(config_mod.settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", True)
-        setattr(config_mod.settings, "ADAMI_SIM_TRACE_EXPORT_PATH", str(export_path))
-        setattr(config_mod.settings, "ADAMI_SIM_OFFLINE", True)
-        setattr(config_mod.settings, "ADAMI_REPORT_TRANSLATE_NEWS", False)
-        setattr(config_mod.settings, "ADAMI_REPORT_CRYPTO_ENABLED", False)
+        config_mod.settings.ADAMI_SIM_TRACE_EXPORT_ENABLED = True
+        config_mod.settings.ADAMI_SIM_TRACE_EXPORT_PATH = str(export_path)
+        config_mod.settings.ADAMI_SIM_OFFLINE = True
+        config_mod.settings.ADAMI_REPORT_TRANSLATE_NEWS = False
+        config_mod.settings.ADAMI_REPORT_CRYPTO_ENABLED = False
     except Exception:
         pass
 

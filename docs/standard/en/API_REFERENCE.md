@@ -92,4 +92,4 @@ Slash-style commands inside user text (e.g. `/report run daily`) are interpreted
 
 ## 7. Versioning
 
-`pyproject.toml` carries package version (`0.2.1` at time of writing). Public JSON/i18n catalogs are **not** semver-guarded separately — treat catalog key additions as contract changes for your fork.
+`pyproject.toml` carries package version (`0.2.2` at time of writing). Public JSON/i18n catalogs are **not** semver-guarded separately — treat catalog key additions as contract changes for your fork.

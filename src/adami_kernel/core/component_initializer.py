@@ -9,11 +9,11 @@ from typing import Any, Dict, Optional
 
 from adami_kernel.cortex.curiosity_queue import CuriosityQueue
 from adami_kernel.cortex.endocrine import EndocrineSystem
-from adami_kernel.cortex.woofish import WoofishPredictor
 from adami_kernel.cortex.prompt import PromptBuilder
 from adami_kernel.cortex.reinforcement import rl_loop
 from adami_kernel.cortex.router import hybrid_router
 from adami_kernel.cortex.tools_manager import ToolboxManager
+from adami_kernel.cortex.woofish import WoofishPredictor
 from adami_kernel.guardian.immunity import ImmunitySystem
 from adami_kernel.guardian.limiter import TokenBucketLimiter
 from adami_kernel.guardian.rbac import RBACMatrix
@@ -84,6 +84,7 @@ try:
 except ImportError:
     ClawHub = None
 from adami_kernel.cortex.evolution import EvolutionEngine
+
 try:
     from adami_kernel.cortex.meta_cortex import MetaCortex
 except ImportError:

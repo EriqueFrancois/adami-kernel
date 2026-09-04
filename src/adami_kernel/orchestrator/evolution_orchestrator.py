@@ -7,10 +7,11 @@ from datetime import datetime
 from typing import Any, Dict
 
 from adami_kernel.config import settings
+from adami_kernel.cortex.endocrine import status_or_normal
 from adami_kernel.cortex.evolution import EvolutionEngine
 from adami_kernel.cortex.meta_cortex import MetaCortex
 from adami_kernel.hippocampus.layered_memory import LayeredMemory
-from adami_kernel.cortex.endocrine import status_or_normal
+from adami_kernel.i18n.boot_msg import boot_t
 from adami_kernel.market.github_hunter import GitHubHunter
 from adami_kernel.market.skill_market import SkillMarket
 from adami_kernel.self_test.self_test_engine import SelfTestEngine
