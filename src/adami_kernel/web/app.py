@@ -462,7 +462,7 @@ async def start_web_console(kernel=None):
 
     config = uvicorn.Config(
         app=app,
-        host="0.0.0.0",
+        host=settings.ADAMI_WEB_BIND_HOST,
         port=8000,
         log_level="info",
         reload=False,
@@ -492,5 +492,5 @@ async def shutdown_event():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=settings.ADAMI_WEB_BIND_HOST, port=8000)
 # 文件路径: src/adami_kernel/web/app.py (结束)

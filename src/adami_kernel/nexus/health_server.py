@@ -76,7 +76,7 @@ class HealthServer:
         # ====================== 【Bug 25 + Bug 10 核心修复】保存 runner 引用 ======================
         self.runner = web.AppRunner(app)
         await self.runner.setup()
-        site = web.TCPSite(self.runner, "0.0.0.0", self.port)
+        site = web.TCPSite(self.runner, settings.ADAMI_HEALTH_BIND_HOST, self.port)
         await site.start()
         # =================================================================================
 

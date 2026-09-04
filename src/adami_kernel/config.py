@@ -161,8 +161,11 @@ class Settings(BaseSettings):
     # When True (default), Telegram may show inline confirm/abort for ACTION templates (Step 8.1 HITL).
     ADAMI_INTENT_ACTION_HITL_TELEGRAM: bool = True
 
-    # ====================== 健康检查 ======================
+    # ====================== 健康检查 / Web Console bind ======================
+    # Loopback-only by default. Public access belongs behind Nginx/SSH tunnel, not 0.0.0.0.
     ADAMI_HEALTH_PORT: int = 8080
+    ADAMI_HEALTH_BIND_HOST: str = "127.0.0.1"
+    ADAMI_WEB_BIND_HOST: str = "127.0.0.1"
 
     # ====================== 【第三阶段核心】技能生成后端选择 ======================
     ADAMI_SKILL_BACKEND: str = "github"
