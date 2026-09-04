@@ -43,4 +43,5 @@ Gates:
 Notes:
 
 - `telemetry_empty_task/` is expected to run under the **inject-all gate** in CI so non-user records are injected and verified isomorphic.
+- `report_daily/` is captured on the prompt shortcut (`run_report_action`), not full `DecisionProcessor.process`. Inject-all boots the bus consumer and emits an extra lifecycle “task started” reply, so it stays on the inject-all **denylist**; the isomorphic (prompt-only) gate still covers it.
 

@@ -1,7 +1,7 @@
 # pyproject.toml
 [tool.poetry]
 name = "adami-kernel"
-version = "0.2.2"
+version = "0.2.3"
 description = "Industrial microkernel for distributed digital ecosystems"
 authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"

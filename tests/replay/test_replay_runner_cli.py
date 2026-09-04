@@ -118,6 +118,33 @@ def test_replay_run_cli_inject_all_records_isomorphic_toolchoice(tmp_path: Path)
     assert out.is_file()
 
 
+def test_replay_run_cli_inject_all_gate_allowlist(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[2]
+    gate = json.loads((root / "docs" / "evals" / "traces" / "inject_all_gate.json").read_text(encoding="utf-8"))
+    deny = {str(x) for x in (gate.get("denylist") or [])}
+    allow = [str(x) for x in (gate.get("allowlist") or []) if str(x) not in deny]
+    assert "report_daily" in deny
+    failures: list[str] = []
+    for name in allow:
+        trace = root / "docs" / "evals" / "traces" / name / "golden_trace.ndjson"
+        out = tmp_path / f"{name}.inject_all.ndjson"
+        cp = _run(
+            [
+                sys.executable,
+                "-m",
+                "adami_kernel.integration.sim.replay_run_cli",
+                str(trace),
+                "--out-trace",
+                str(out),
+                "--inject-all-records",
+                "--verify-isomorphic",
+            ]
+        )
+        if cp.returncode != 0:
+            failures.append(f"{name}: {cp.stderr[-800:]}")
+    assert not failures, "\n".join(failures)
+
+
 def test_replay_run_cli_fault_injection_outputs_eval_reports(tmp_path: Path) -> None:
     root = Path(__file__).resolve().parents[2]
     trace = root / "docs" / "evals" / "traces" / "planner_multistep" / "golden_trace.ndjson"

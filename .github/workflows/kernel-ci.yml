@@ -513,6 +513,7 @@ jobs:
             --out-json reports/replay_compare.json \
             --out-md reports/replay_compare.md
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: replay-eval-report
           path: |

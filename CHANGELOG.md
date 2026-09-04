@@ -20,6 +20,16 @@ Initial alpha release for early adopters.
 
 - This is an **alpha** release: APIs and defaults may change.
 
+## v0.2.3 — 2026-09-04
+
+Package version in `pyproject.toml` is now **0.2.3**.
+
+### Fixed
+
+- **CI `replay-traces` inject-all gate**: `report_daily` was captured on the prompt shortcut and does
+  not include the full-DP “task started” reply. It is denylisted for `--inject-all-records` so the
+  strong inject-all job matches traces that actually run that path.
+
 ## v0.2.2 — 2026-09-04
 
 Package version in `pyproject.toml` is now **0.2.2**.
