@@ -846,7 +846,14 @@ async def run_replay(
 
     if verify_isomorphic:
         actual = load_ndjson_records(export_path)
-        mm = compare_isomorphic(expected=records, actual=actual)
+        # Prompt-driven replay only re-injects user.prompt; leading telemetry
+        # records (empty-task router events, etc.) are not reproduced.
+        first_prompt = next(
+            (i for i, r in enumerate(records) if str(r.source_module) == "user.prompt"),
+            0,
+        )
+        expected_iso = records[first_prompt:]
+        mm = compare_isomorphic(expected=expected_iso, actual=actual)
         if mm is not None:
             raise ReplayValidationError(
                 f"isomorphic_mismatch at {mm.index}: {mm.reason}\n"

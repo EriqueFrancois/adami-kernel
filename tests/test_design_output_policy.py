@@ -38,6 +38,9 @@ async def test_call_llm_prefix_only_when_apply_design_output_policy(
 ) -> None:
     dop.invalidate_design_output_policy_cache()
     monkeypatch.setattr(settings, "ADAMI_DESIGN_OUTPUT_POLICY_ENABLED", True)
+    # Replay/sim tests may leave these True; the offline stub never hits _call_openai_format.
+    monkeypatch.setattr(settings, "ADAMI_SIM_OFFLINE", False)
+    monkeypatch.setattr(settings, "ADAMI_SIM_TRACE_EXPORT_ENABLED", False)
 
     prompts: list[str] = []
 
