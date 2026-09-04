@@ -20,6 +20,7 @@ adami-golden-trace-gen = "adami_kernel.integration.sim.golden_trace_gen:main"
 adami-golden-trace-capture = "adami_kernel.integration.sim.golden_trace_capture:main"
 adami-golden-trace-refresh = "adami_kernel.integration.sim.golden_trace_refresh_cli:main"
 adami-ops-boot-check = "adami_kernel.ops.ops_boot_self_check_cli:main"
+adami-demo = "adami_kernel.demo.cli:main"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14" # Must be <3.14 for agentops compatibility

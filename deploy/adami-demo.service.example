@@ -1,0 +1,26 @@
+# Example only — not installed by this repository change.
+# Single worker is mandatory: session, queue, rate limits, and slots are in-process memory.
+# Do not put API keys in this file.
+
+[Unit]
+Description=Adami Guided Demo API (localhost)
+After=network.target
+
+[Service]
+Type=simple
+User=admin
+WorkingDirectory=/home/admin/adami-kernel
+Environment=ADAMI_DEMO_HOST=127.0.0.1
+Environment=ADAMI_DEMO_PORT=8091
+Environment=ADAMI_DEMO_LLM_PROVIDER=fake
+Environment=ADAMI_DEMO_COOKIE_SECURE=true
+Environment=ADAMI_DEMO_ALLOWED_ORIGINS=https://adami.erique.sbs
+ExecStart=/home/admin/.local/bin/poetry run adami-demo --host 127.0.0.1 --port 8091 --workers 1
+# Provide ADAMI_DEMO_COOKIE_SECRET / ADAMI_DEMO_HMAC_SECRET via a drop-in env file, not this unit.
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

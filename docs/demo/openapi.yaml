@@ -1,0 +1,305 @@
+# Adami Guided Demo API — contract source of truth (internal process routes).
+# Website talks to /api/demo/v1/* ; Nginx strips /api/demo.
+openapi: 3.0.3
+info:
+  title: Adami Guided Demo API
+  version: "1.0.0"
+  description: |
+    Localhost-only capability demo. Not the production Kernel Web Console (:8000)
+    or Health server (:8080). Sessions live in a single process (uvicorn workers=1).
+    Browser cookie `adami_demo_sid` is opaque; JSON never returns a session id.
+    CSRF header `X-Adami-Demo-CSRF` is required on writes and stream reconnects.
+    `accepted.mode` is `live` only when an OpenAI-compatible provider is explicitly
+    configured with an API key; Fake LLM is always `fake`. Streaming is
+    `chunked-complete` (full model text, then chunked) and is not token streaming.
+servers:
+  - url: http://127.0.0.1:8091
+    description: Demo process (loopback)
+paths:
+  /v1/session:
+    post:
+      summary: Create a temporary demo session
+      parameters:
+        - $ref: "#/components/parameters/OriginHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionCreateRequest"
+      responses:
+        "200":
+          description: Session created; Set-Cookie adami_demo_sid (HttpOnly, Path=/api/demo/, SameSite=Lax)
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionCreateResponse"
+        "403":
+          $ref: "#/components/responses/Error"
+        "429":
+          $ref: "#/components/responses/Error"
+  /v1/scenarios:
+    get:
+      summary: Scenario catalog for the session locale (or en)
+      responses:
+        "200":
+          description: Stable scenario ids
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScenarioList"
+  /v1/fallback/{scenarioId}:
+    get:
+      summary: Prepared canned copy (does not use a slot or a turn)
+      parameters:
+        - name: scenarioId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/ScenarioId"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fallback"
+  /v1/turns:
+    post:
+      summary: Start a turn; body is text/event-stream (Fetch + ReadableStream)
+      parameters:
+        - $ref: "#/components/parameters/OriginHeader"
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TurnRequest"
+      responses:
+        "200":
+          description: SSE event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "429":
+          $ref: "#/components/responses/Error"
+  /v1/turns/{taskId}/cancel:
+    post:
+      summary: Cancel a queued or running task owned by this session
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/OriginHeader"
+        - $ref: "#/components/parameters/CsrfHeader"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CancelResponse"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+  /v1/stream/{taskId}:
+    get:
+      summary: Reconnect to an in-flight or recently finished task (2s grace, 15s terminal ring)
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/OriginHeader"
+        - $ref: "#/components/parameters/CsrfHeader"
+      responses:
+        "200":
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+  /v1/health:
+    get:
+      summary: Coarse demo health for a UI banner
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /v1/internal/metrics:
+    get:
+      summary: Loopback-only metrics; must not be reverse-proxied
+      responses:
+        "200":
+          description: Counters without user content
+        "403":
+          description: Non-loopback peer
+components:
+  parameters:
+    OriginHeader:
+      name: Origin
+      in: header
+      required: true
+      schema:
+        type: string
+    CsrfHeader:
+      name: X-Adami-Demo-CSRF
+      in: header
+      required: true
+      schema:
+        type: string
+  schemas:
+    ScenarioId:
+      type: string
+      enum:
+        - what-adami-can-do
+        - goal-planning
+        - analyze-problem
+        - memory-mechanism
+        - reflect-improve
+        - readonly-organize
+        - freeform
+    LocaleId:
+      type: string
+      enum: [en, zh-CN]
+    ErrorCode:
+      type: string
+      enum:
+        - rate_limited
+        - turn_limit
+        - input_too_long
+        - queue_full
+        - wait_timeout
+        - session_expired
+        - already_running
+        - unavailable
+        - tool_denied
+        - csrf_denied
+        - origin_denied
+    SessionCreateRequest:
+      type: object
+      required: [locale]
+      properties:
+        locale:
+          $ref: "#/components/schemas/LocaleId"
+    SessionCreateResponse:
+      type: object
+      required: [expiresAt, turnsRemaining, maxTurns, csrfToken, llmMode, disclaimer]
+      properties:
+        expiresAt:
+          type: string
+          format: date-time
+        turnsRemaining:
+          type: integer
+        maxTurns:
+          type: integer
+        csrfToken:
+          type: string
+        llmMode:
+          type: string
+          enum: [live, fake]
+        disclaimer:
+          type: string
+          enum: [capability-demo]
+      additionalProperties: false
+    TurnRequest:
+      type: object
+      required: [scenarioId, message]
+      properties:
+        scenarioId:
+          $ref: "#/components/schemas/ScenarioId"
+        message:
+          type: string
+          maxLength: 1200
+        clientTurnId:
+          type: string
+    ScenarioList:
+      type: object
+      properties:
+        scenarios:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                $ref: "#/components/schemas/ScenarioId"
+              title:
+                type: string
+              description:
+                type: string
+              disclaimer:
+                type: string
+    Fallback:
+      type: object
+      required: [reason, label, title, body, scenarioId]
+      properties:
+        reason:
+          type: string
+        label:
+          type: string
+          enum: [canned-demo]
+        title:
+          type: string
+        body:
+          type: string
+        scenarioId:
+          $ref: "#/components/schemas/ScenarioId"
+    CancelResponse:
+      type: object
+      properties:
+        taskId:
+          type: string
+        released:
+          type: string
+          enum: [slot, queue]
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded, unavailable]
+        disclaimer:
+          type: string
+          enum: [capability-demo]
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        message:
+          type: string
+        fallback:
+          $ref: "#/components/schemas/Fallback"
+  responses:
+    Error:
+      description: Structured error; never includes session id, keys, paths, or tracebacks
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

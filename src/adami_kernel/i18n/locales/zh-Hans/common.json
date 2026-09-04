@@ -2483,5 +2483,17 @@
   "cprm.log.doctrine_inject": "[PromptBuilder] 成功注入 SecondBrain L1 教义（SecondBrain.md，长度 {n} 字符）",
   "cprm.err.identity": "[PromptBuilder] SecondBrain 身份注入失败: {e}",
   "cprm.warn.no_secondbrain": "[PromptBuilder] SecondBrain 未注入，身份上下文将缺失",
-  "cprm.hint.knowledge_wiki_priority": "[知识优先级] 在相关时优先参考 SecondBrain 已落盘笔记（`retrieve_brain_snippets` 所覆盖的 `Inbox/`、`Projects/`、`Resources/` 顶层 `*.md`），再辅以临时网页检索或非结构化检索。"
+  "cprm.hint.knowledge_wiki_priority": "[知识优先级] 在相关时优先参考 SecondBrain 已落盘笔记（`retrieve_brain_snippets` 所覆盖的 `Inbox/`、`Projects/`、`Resources/` 顶层 `*.md`），再辅以临时网页检索或非结构化检索。",
+  "demo.error.rate_limited": "演示请求过于频繁，请稍后再试。",
+  "demo.error.turn_limit": "本演示会话的轮次已用完。",
+  "demo.error.input_too_long": "输入过长（演示最多 1200 个字符）。",
+  "demo.error.queue_full": "演示队列已满，改为展示预制示例。",
+  "demo.error.wait_timeout": "等待演示名额超时，改为展示预制示例。",
+  "demo.error.session_expired": "演示会话已过期，请重新开始。",
+  "demo.error.already_running": "本会话已有进行中的演示任务。",
+  "demo.error.unavailable": "引导演示暂时不可用。",
+  "demo.error.tool_denied": "引导演示不允许该操作。",
+  "demo.error.csrf_denied": "演示请求未通过安全校验。",
+  "demo.error.origin_denied": "当前来源不允许使用引导演示。",
+  "demo.disclaimer": "AdamI Demo 是受约束的公开交互层。它只暴露有限的能力子集，不能无限制访问完整运行时、工具或生产记忆。"
 }

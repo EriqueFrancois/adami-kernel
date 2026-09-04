@@ -2483,5 +2483,17 @@
   "cprm.log.doctrine_inject": "[PromptBuilder] injected SecondBrain L1 doctrine ({n} chars)",
   "cprm.err.identity": "[PromptBuilder] SecondBrain identity injection failed: {e}",
   "cprm.warn.no_secondbrain": "[PromptBuilder] SecondBrain not injected; identity context missing",
-  "cprm.hint.knowledge_wiki_priority": "[Knowledge priority] Prefer on-disk SecondBrain notes (top-level `*.md` in `Inbox/`, `Projects/`, `Resources/` per `retrieve_brain_snippets`) when relevant, before relying only on ad-hoc web search or unstructured retrieval."
+  "cprm.hint.knowledge_wiki_priority": "[Knowledge priority] Prefer on-disk SecondBrain notes (top-level `*.md` in `Inbox/`, `Projects/`, `Resources/` per `retrieve_brain_snippets`) when relevant, before relying only on ad-hoc web search or unstructured retrieval.",
+  "demo.error.rate_limited": "Too many demonstration requests. Please wait and try again.",
+  "demo.error.turn_limit": "This demonstration session has used all available turns.",
+  "demo.error.input_too_long": "Your message is too long for the guided demo (max 1200 characters).",
+  "demo.error.queue_full": "The demonstration queue is full. Showing a prepared example instead.",
+  "demo.error.wait_timeout": "Waited too long for a demonstration slot. Showing a prepared example instead.",
+  "demo.error.session_expired": "This demonstration session has expired. Start a new session.",
+  "demo.error.already_running": "This session already has a demonstration turn in progress.",
+  "demo.error.unavailable": "The guided demo is temporarily unavailable.",
+  "demo.error.tool_denied": "That action is not allowed in the guided demo.",
+  "demo.error.csrf_denied": "The demonstration request failed a security check.",
+  "demo.error.origin_denied": "This origin is not allowed to use the guided demo.",
+  "demo.disclaimer": "AdamI Demo is a constrained public interaction layer. It exposes only a limited subset of AdamI behavior and does not provide unrestricted access to the full runtime, tools, or production memory."
 }
