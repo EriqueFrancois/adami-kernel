@@ -558,4 +558,4 @@ jobs:
       - name: Stress — replay + parallel validate (threshold 0 = any failure fails job)
         env:
           STRESS_FAILURE_THRESHOLD: "0"
-        run: poetry run pytest -p pytest_asyncio.plugin -m stress -q --tb=short
+        run: poetry run pytest -p pytest_asyncio.plugin tests/stress -m stress -q --tb=short

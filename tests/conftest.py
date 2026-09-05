@@ -8,7 +8,7 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-async def _cleanup_background_tasks() -> None:
+async def _cleanup_background_tasks(request: pytest.FixtureRequest) -> None:
     """Cancel leaked asyncio tasks after each async test.
 
     Some tests (and the code under test) may spawn background tasks via
@@ -16,6 +16,10 @@ async def _cleanup_background_tasks() -> None:
     survive test teardown, pytest (and the GitHub Actions runner) can hang or
     emit `ResourceWarning: unclosed event loop`.
     """
+    if request.node.get_closest_marker("stress"):
+        yield
+        return
+
     yield
 
     try:
